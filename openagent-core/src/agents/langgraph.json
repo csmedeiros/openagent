@@ -1,0 +1,18 @@
+{
+  "dependencies": [
+    ".",
+    "langchain",
+    "langchain-core",
+    "langchain-groq",
+    "langgraph",
+    "langgraph-checkpoint",
+    "langfuse"
+  ],
+  "graphs": {
+    "openagent": "./openagent.py:oa",
+    "coder": "./coder.py:coder",
+    "researcher": "./researcher.py:researcher"
+  },
+  "env": "./.env",
+  "python_version": "3.13"
+}

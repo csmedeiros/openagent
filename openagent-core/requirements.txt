@@ -1,0 +1,33 @@
+# Core LangChain Dependencies
+langchain-core==0.3.29
+langchain==0.3.13
+langchain-community==0.3.13
+langgraph==0.2.56
+langgraph-cli[inmem]
+
+# DeepAgents
+deepagents
+
+# LLM Providers
+langchain-groq==0.2.1
+langchain-openai==0.2.14
+
+# Browser Automation
+playwright==1.49.1
+playwright-stealth==1.0.6
+beautifulsoup4
+
+# Utilities
+python-dotenv==1.0.1
+pydantic==2.10.5
+pydantic-core==2.27.2
+
+# Observability
+langfuse>=3.0.0
+
+# File Handling
+aiofiles==24.1.0
+
+# Build dependencies
+setuptools>=65.0.0
+wheel>=0.40.0

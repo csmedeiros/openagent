@@ -1,0 +1,252 @@
+
+# Pesquisa: Ferramentas Necessárias para Avaliação no GAIA Benchmark
+
+## 1. O que é o GAIA Benchmark?
+
+O GAIA (General AI Assistants) é um benchmark desenvolvido por pesquisadores do Meta AI, Hugging Face e outras instituições para avaliar assistentes de IA geral. Foi introduzido no paper "GAIA: a benchmark for General AI Assistants" (arXiv:2311.12983) em novembro de 2023.
+
+### Características Principais:
+- **466 perguntas** divididas em 3 níveis de dificuldade
+- Questões conceitualmente simples para humanos mas desafiadoras para IAs
+- Humanos atingem 92% de acurácia vs 15% do GPT-4 com plugins
+- Foco em habilidades fundamentais: raciocínio, multimodalidade, navegação web e uso de ferramentas
+
+## 2. Categorias de Tarefas Avaliadas
+
+O GAIA avalia tarefas que requerem:
+
+### 2.1 Raciocínio Multi-step
+- Tarefas que exigem múltiplos passos de raciocínio
+- Conexão de informações de diferentes fontes
+- Planejamento e execução sequencial
+
+### 2.2 Multimodalidade
+- Processamento de texto
+- Análise de imagens
+- Transcrição de áudio
+- Processamento de vídeos
+- Leitura de documentos (PDF, DOCX, XLSX, PPTX)
+
+### 2.3 Navegação Web
+- Busca em motores de busca (Google, DuckDuckGo, Wikipedia)
+- Navegação em páginas web
+- Extração de informações de sites
+- Acesso a arquivos e documentos online
+
+### 2.4 Uso de Ferramentas (Tool Use)
+- Execução de código Python
+- Manipulação de arquivos
+- Conversão de formatos
+- Uso de APIs externas
+
+## 3. Ferramentas Necessárias para Avaliação no GAIA
+
+Para que um agente de IA seja avaliado no GAIA benchmark, ele precisa implementar as seguintes ferramentas:
+
+### 3.1 Ferramentas de Busca (Search Tools)
+
+#### Google Search
+- **Descrição**: Busca avançada no Google via APIs (SERPAPI, Serper.dev)
+- **Uso**: Encontrar informações atualizadas na web
+- **Requisitos**: API keys para SERPAPI ou Serper
+
+#### DuckDuckGo Search
+- **Descrição**: Busca privada via DuckDuckGo
+- **Uso**: Alternativa ao Google para buscas gerais
+- **Vantagens**: Não requer API key, maior privacidade
+
+#### Wikipedia Search
+- **Descrição**: Busca específica na Wikipedia
+- **Uso**: Encontrar informações enciclopédicas confiáveis
+- **Uso típico**: Fatos históricos, definições, biografias
+
+### 3.2 Ferramentas de Navegação Web (Web Browser Tools)
+
+#### VisitTool
+- **Descrição**: Acessa uma URL específica
+- **Uso**: Carregar o conteúdo de uma página web
+- **Parâmetros**: URL a ser visitada
+
+#### PageUpTool / PageDownTool
+- **Descrição**: Navegação vertical na página
+- **Uso**: Mover para cima ou para baixo no conteúdo
+- **Utilidade**: Páginas longas com muito conteúdo
+
+#### FinderTool / FindNextTool
+- **Descrição**: Busca de texto na página (simula Ctrl+F)
+- **Uso**: Encontrar palavras ou frases específicas
+- **Funcionalidade**: Busca e navegação entre ocorrências
+
+#### ArchiveSearchTool
+- **Descrição**: Busca e acesso ao Wayback Machine
+- **Uso**: Acessar versões arquivadas de páginas
+- **Utilidade**: Páginas removidas ou versões antigas
+
+### 3.3 Ferramentas de Conversão de Arquivos (File Conversion)
+
+#### mdconvert (Markdown Converter)
+- **Descrição**: Conversor poderoso de múltiplos formatos para Markdown
+- **Uso**: Permitir que o LLM "leia" diversos tipos de conteúdo
+- **Formatos suportados**:
+  - Documentos: HTML, PDF, DOCX, XLSX, PPTX
+  - Áudio: WAV, MP3, M4A (com transcrição)
+  - Imagens: com extração de metadados e OCR
+  - Arquivos: ZIP (extração e listagem)
+  - Vídeos: YouTube (metadados, descrição, transcrição)
+
+### 3.4 Ferramentas de Inspeção e Análise
+
+#### TextInspectorTool
+- **Descrição**: Lê arquivos locais como texto e responde perguntas
+- **Uso**: Analisar conteúdo de arquivos diversos
+- **Funcionalidade**: Usa mdconvert + LLM para responder perguntas
+- **Tipos suportados**: PDF, DOCX, XLSX, áudio, etc.
+
+#### VisualQATool (Visual Question Answering)
+- **Descrição**: Responde perguntas sobre imagens
+- **Modelo**: HuggingFaceM4/idefics2-8b-chatty
+- **Uso**: Análise e compreensão de imagens
+- **Funcionalidade**: Responder perguntas visuais
+
+#### SpeechToTextTool
+- **Descrição**: Transcreve áudio para texto
+- **Origem**: smolagents (ferramenta padrão)
+- **Uso**: Processar arquivos de áudio
+- **Funcionalidade**: Transcrição automática
+
+### 3.5 Ferramentas de Execução de Código
+
+#### Python Code Interpreter
+- **Descrição**: Execução de código Python
+- **Uso**: Processamento de dados, cálculos, automação
+- **Ambiente**: Sandbox seguro (Docker)
+- **Funcionalidades**:
+  - Execução de scripts Python
+  - Acesso a bibliotecas padrão
+  - Manipulação de dados
+  - Geração de gráficos
+
+#### Bash/Shell Execution
+- **Descrição**: Execução de comandos shell
+- **Uso**: Automação de tarefas do sistema
+- **Ambiente**: Container Docker isolado
+- **Funcionalidades**:
+  - Manipulação de arquivos
+  - Execução de comandos
+  - Automação de processos
+
+### 3.6 Ferramentas de Web Browsing Avançado
+
+#### mshtools-web_search
+- **Descrição**: Busca na web em tempo real
+- **Uso**: Obter informações atualizadas
+- **Implementação**: Via APIs de busca
+
+#### mshtools-browser
+- **Descrição**: Navegador web completo
+- **Uso**: Interação com páginas web
+- **Funcionalidades**:
+  - Visita a URLs
+  - Navegação por páginas
+  - Extração de conteúdo
+  - Interação com elementos
+
+## 4. Estrutura de Agentes para GAIA
+
+### 4.1 ManagerAgent
+- **Tipo**: GAIACodeAgent
+- **Função**: Orquestrador principal
+- **Capacidades**:
+  - Planejamento e execução de código Python
+  - Uso direto de ferramentas
+  - Delegação de tarefas para sub-agentes
+- **Comportamento**: Definido por gaia_code_agent.yaml
+
+### 4.2 WebResearchAgent
+- **Tipo**: GAIAToolCallingAgent
+- **Função**: Especialista em pesquisa web
+- **Ferramentas**:
+  - Ferramentas de busca (Google, DuckDuckGo, Wikipedia)
+  - Ferramentas de navegação browser
+  - TextInspectorTool para arquivos baixados
+- **Comportamento**: Definido por gaia_toolcalling_agent.yaml
+
+## 5. Implementações e Frameworks
+
+### 5.1 smolagents
+- **Descrição**: Framework da Hugging Face para agentes
+- **Uso**: Base para implementação GAIA
+- **Ferramentas padrão**: web_search, browser, code_interpreter
+
+### 5.2 Inspect AI
+- **Descrição**: Framework da UK AISI para avaliação
+- **Uso**: Implementação oficial do GAIA
+- **Ferramentas**: bash, python, web_browsing
+
+### 5.3 LangGraph
+- **Descrição**: Framework para aplicações com LLMs
+- **Uso**: Implementações de agentes GAIA
+- **Ferramentas**: Configuráveis conforme necessidade
+
+## 6. Requisitos Técnicos
+
+### 6.1 APIs Necessárias
+- **Google API Key**: Para modelos Gemini e busca
+- **SERPAPI/Serper API Key**: Para busca Google avançada
+- **OpenAI API Key**: Para modelos OpenAI
+- **Anthropic API Key**: Para modelos Claude
+- **HuggingFace Token**: Para modelos e datasets
+
+### 6.2 Infraestrutura
+- **Docker**: Para sandbox seguro
+- **Python 3.9+**: Ambiente de execução
+- **GPU**: Opcional, para modelos locais
+
+### 6.3 Bibliotecas Python Principais
+- smolagents
+- gradio
+- langchain/langgraph
+- inspect-ai
+- beautifulsoup4
+- requests
+- pandas
+- pillow
+
+## 7. Referências e Links
+
+### 7.1 Paper Oficial
+- **Título**: GAIA: a benchmark for General AI Assistants
+- **arXiv**: https://arxiv.org/abs/2311.12983
+- **PDF**: https://arxiv.org/pdf/2311.12983
+- **Autores**: Grégoire Mialon, Clémentine Fourrier, Craig Swift, Thomas Wolf, Yann LeCun, Thomas Scialom
+
+### 7.2 Repositórios e Recursos
+- **Hugging Face GAIA**: https://huggingface.co/gaia-benchmark
+- **GitHub GAIA Agent**: https://github.com/sassarini-marco/gaia-agent
+- **Inspect Evals GAIA**: https://ukgovernmentbeis.github.io/inspect_evals/evals/assistants/gaia/
+- **Leaderboard GAIA**: https://huggingface.co/spaces/gaia-benchmark/leaderboard
+
+### 7.3 Frameworks e Bibliotecas
+- **smolagents**: https://github.com/huggingface/smolagents
+- **Inspect AI**: https://github.com/UKGovernmentBEIS/inspect_ai
+- **LangGraph**: https://github.com/langchain-ai/langgraph
+
+### 7.4 Artigos e Documentação
+- **Meta AI Blog**: https://ai.meta.com/research/publications/gaia-a-benchmark-for-general-ai-assistants
+- **Hugging Face Blog**: https://huggingface.co/blog/gaia
+- **Agentic Design**: https://agentic-design.ai/patterns/evaluation-monitoring/gaia-benchmark
+
+---
+
+## Resumo das Ferramentas Essenciais
+
+Para ser avaliado no GAIA benchmark, um agente de IA deve implementar:
+
+1. **Ferramentas de Busca**: Google Search, DuckDuckGo, Wikipedia
+2. **Ferramentas de Navegação Web**: visit, page_up/page_down, find, archive_search
+3. **Ferramentas de Conversão de Arquivos**: mdconvert (PDF, DOCX, XLSX, áudio, imagens, vídeos)
+4. **Ferramentas de Análise**: TextInspector, VisualQA, SpeechToText
+5. **Ferramentas de Execução**: Python interpreter, Bash/Shell
+6. **Ferramentas de Web Browsing Avançado**: mshtools-web_search, mshtools-browser
+
+O agente deve ser capaz de realizar raciocínio multi-step, processar múltiplas modalidades (texto, imagem, áudio), navegar na web e usar ferramentas de forma eficaz.

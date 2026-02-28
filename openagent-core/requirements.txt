@@ -31,3 +31,7 @@ aiofiles==24.1.0
 # Build dependencies
 setuptools>=65.0.0
 wheel>=0.40.0
+
+# Observability
+
+mlflow

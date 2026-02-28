@@ -6,6 +6,9 @@ from langgraph.types import Command
 
 from typing import Annotated
 
+# Workspace root - consistent with coder.py and shell_tool
+WORKSPACE_ROOT = r"C:\Users\caiosmedeiros\Documents"
+
 @tool(parse_docstring=True)
 async def read_file(file_path: str, start: int, end: int, tool_call_id: Annotated[str, InjectedToolCallId]) -> str:
     """
@@ -16,8 +19,12 @@ async def read_file(file_path: str, start: int, end: int, tool_call_id: Annotate
         start: Starting line number (1-indexed, required)
         end: Ending line number (1-indexed, inclusive, required)
     """
+    # Resolve relative paths against workspace root
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(WORKSPACE_ROOT, file_path)
+
     try:
-        async with aiofiles.open(file_path, "r") as f:
+        async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
             content = await f.read()
             lines = content.splitlines(keepends=True)
 

@@ -7,18 +7,22 @@ from langchain.agents.middleware import TodoListMiddleware
 from agents.middleware import SummarizationMiddleware
 
 # Import centralized model configuration
-from agents.models import get_vision_model
-
-model = get_vision_model(temperature=0.3)
+from agents.models import model
 
 import os
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_CURRENT_DIR, "prompts/researcher_sys_prompt_v0.0.1.md"), "r") as f:
+with open(os.path.join(_CURRENT_DIR, "prompts/researcher_sys_prompt_v0.0.1.md"), "r", encoding='utf-8') as f:
     sys_prompt = f.read()
 
-sum_middlware = SummarizationMiddleware(model=model, trigger=("fraction", 0.6), keep=("fraction", 0.07))
 
 # Local development workspace root
+
+# MLflow tracing igual ao OpenAgent
+import mlflow
+mlflow.set_tracking_uri("http://127.0.0.1:1234")
+mlflow.set_experiment("Researcher")
+mlflow.langchain.autolog()
+
 root_path = os.path.join(os.path.dirname(__file__), "tests")
 
 from agents.tools import *
@@ -29,7 +33,7 @@ from playwright.async_api import async_playwright
 
 
 # Import necessary types and tools
-from langchain.messages import SystemMessage
+from langchain.messages import SystemMessage, AIMessage
 from typing import Dict, Annotated, Optional, Any
 from playwright.async_api import Page, Browser
 from langchain.tools import tool, InjectedState
@@ -72,7 +76,7 @@ async def initialize_browser(state: ResearcherState):
 
         return {
             "browser_initialized": True,
-            "messages": [SystemMessage(content="Browser instantiated. Now ready to create pages in the browser.")]
+            # "messages": [AIMessage(content="Browser instantiated. Now ready to create pages in the browser.")]
         }
     return {}
 

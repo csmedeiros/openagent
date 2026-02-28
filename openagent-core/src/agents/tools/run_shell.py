@@ -1,59 +1,69 @@
 import asyncio
+import subprocess
 from langchain.tools import tool
 from agents.utils.logging import logger
 import os
 
+# Workspace root - consistent with coder.py
+WORKSPACE_ROOT = r"C:\Users\caiosmedeiros\Documents"
+
+
+def _run_command_sync(command: str, cwd: str, timeout: float = 60.0) -> str:
+    """Runs a shell command synchronously. Called from a thread to avoid event loop issues."""
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            timeout=timeout,
+            errors='replace'
+        )
+
+        output = f"Exit code: {result.returncode}\n\n"
+
+        if result.stdout:
+            output += f"STDOUT:\n{result.stdout}\n\n"
+
+        if result.stderr:
+            output += f"STDERR:\n{result.stderr}"
+
+        return output.strip()
+
+    except subprocess.TimeoutExpired:
+        return f"Error: Command timed out after {timeout} seconds"
+
+
 @tool(parse_docstring=True)
 async def shell_tool(command: str, cwd: str = None) -> str:
     """
-    Executes a shell command asynchronously and returns the output.
+    Executes a shell command and returns the output.
 
     Args:
         command: The shell command to execute
-        cwd: Optional working directory for the command. Defaults to workspace tests directory.
+        cwd: Optional working directory for the command. Defaults to the workspace root directory.
     """
-    # Default to workspace tests directory
+    # Default to workspace root directory
     if cwd is None:
-        cwd = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests")
+        cwd = WORKSPACE_ROOT
+
+    # Validate that cwd exists
+    if not os.path.isdir(cwd):
+        return f"Error: Working directory '{cwd}' does not exist."
 
     try:
         logger.debug(f"Running shell command in {cwd}: {command}")
 
+        # Use asyncio.to_thread to run subprocess synchronously in a separate thread.
+        # This avoids the NotImplementedError that asyncio.create_subprocess_shell
+        # raises on Windows when using SelectorEventLoop (common in LangGraph).
+        result = await asyncio.to_thread(_run_command_sync, command, cwd)
 
-        # Create subprocess
-        process = await asyncio.create_subprocess_shell(
-            command.replace("\"", ""),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=cwd
-        )
-
-        # Wait for completion with timeout
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(),
-            timeout=60.0  # 60 second timeout
-        )
-
-        # Decode output
-        stdout_str = stdout.decode('utf-8', errors='replace')
-        stderr_str = stderr.decode('utf-8', errors='replace')
-
-        # Build result message
-        result = f"Exit code: {process.returncode}\n\n"
-
-        if stdout_str:
-            result += f"STDOUT:\n{stdout_str}\n\n"
-
-        if stderr_str:
-            result += f"STDERR:\n{stderr_str}"
-
-        logger.debug(f"Command completed with exit code {process.returncode}")
-        return result.strip()
-
-    except asyncio.TimeoutError:
-        logger.error(f"Command timeout after 60s: {command}")
-        return f"Error: Command timed out after 60 seconds"
+        logger.debug(f"Command completed")
+        return result
 
     except Exception as e:
         logger.error(f"Error executing command '{command}': {str(e)}", exc_info=True)
-        return f"Error executing command: {str(e)}"
+        return f"Error executing command ({type(e).__name__}): {str(e)}"
+

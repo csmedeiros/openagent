@@ -22,7 +22,9 @@ class BrowserManager:
     async def get_browser(self):
         if self._browser is None:
             self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(headless=False, downloads_path="/Users/claudiomedeiros/Documents/openagent/openagent-core/src/agents/tests/downloads")
+            import os
+            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+            self._browser = await self._playwright.chromium.launch(headless=False, downloads_path=downloads_path)
             self._start_idle_monitor()
         self._update_activity()
         return self._browser

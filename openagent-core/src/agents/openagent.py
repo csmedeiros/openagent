@@ -1,6 +1,10 @@
 import sys
 
-sys.path.append("/Users/claudiomedeiros/Documents/openagent/openagent-core/src")
+sys.path.append(r"C:\Users\caiosmedeiros\Documents\Projetos Pessoais\openagent\openagent-core\src")
+
+import mlflow
+mlflow.set_experiment("OpenAgent Testing")
+mlflow.langchain.autolog()
 
 from dotenv import load_dotenv
 
@@ -11,9 +15,7 @@ from pydantic import BaseModel, Field
 import os
 
 # Import centralized model configuration
-from agents.models import get_model, get_vision_model
-
-model = get_vision_model(temperature=0.2)
+from agents.models import get_model, get_vision_model, model
 
 from agents.tools import *
 from agents.utils.logging import logger
@@ -59,10 +61,17 @@ builder = StateGraph(OpenAgentState)
 tools = [write_file, read_file, shell_tool, write_todos, message]
 tools.extend(FilesystemFileSearchMiddleware(root_path="/Users/claudiomedeiros/Documents/openagent/openagent-core/src/agents/tests").tools)
 
+
+from agents.utils.message_truncation import truncate_messages
+
 def agent(state: OpenAgentState) -> OpenAgentState:
     """Agent node that uses custom browser tools"""
     llm = model.bind_tools(tools=tools)
-    response = llm.invoke([SystemMessage(content=sys_prompt.replace("<FILES>", "\n".join(state["files"])))] + state["messages"])
+
+    # Hard truncation safety net - prevents exceeding API token limits
+    # messages = truncate_messages(state["messages"])
+
+    response = llm.invoke([SystemMessage(content=sys_prompt.replace("<FILES>", "\n".join(state["files"])))] + state['messages'])
     return {"messages": [response]}
 
 builder.add_node("summarize", summarize_messages_node)
@@ -72,10 +81,26 @@ builder.add_node("tools", ToolNode(tools=tools, handle_tool_errors=True))
 builder.add_conditional_edges(START, should_summarize)
 builder.add_conditional_edges("agent", tools_condition)
 
-builder.add_edge("tools", "agent")
+# tools → check if summarization needed before returning to agent
+builder.add_conditional_edges("tools", should_summarize)
 builder.add_edge("summarize", "agent")
 
+from langfuse.langchain import CallbackHandler
+from langchain_azure_ai.callbacks.tracers import AzureAIOpenTelemetryTracer
+
+# callback = CallbackHandler()
+# callback = AzureAIOpenTelemetryTracer(connection_string=os.getenv("AZURE_TRACING_CONNECTION_STRING"))
+import mlflow
+
+mlflow.set_tracking_uri("http://127.0.0.1:1234")
+mlflow.set_experiment("OpenAgent")
+mlflow.langchain.autolog()
+
 oa = builder.compile()
+
+# oa.config = {
+#     "callbacks": [callback]
+# }
 
 
 # if __name__ == "__main__":

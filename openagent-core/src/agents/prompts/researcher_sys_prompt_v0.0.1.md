@@ -34,30 +34,77 @@ For example, if you want to find a product review, you won't use the browser and
 Here are the available tools for your usage.
 
 - **write_todos**:
-⭐ **MUST BE THE FIRST TOOL YOU USE** - Creates and manages a structured task list for tracking research progress.
-This tool is CRITICAL for planning and demonstrating thoroughness to OpenAgent.
+   MUST be the first tool you use. With this tool, you must build a structured plan to attend the user request.
+   The todo content must be detailed and contain **what must be done**, **what is the expected deliverable** (deliverable contents, components, files and file formats), and other adequate aspects.
+   - Parameters:
+      - `todos` (required): List of todo items, each with a description and status.
 
-**When to use:**
-- At the start of ANY research task to create a detailed plan
-- When breaking down complex research into manageable steps
-- To track progress through multi-step information gathering
-- To update OpenAgent on research progress
+- **search_web**:
+   PRIMARY SEARCH TOOL - Performs direct web searches using Tavily without needing to navigate to the website first.
+   Returns formatted search results with titles, URLs, and snippets (up to 10 results max).
+   - Parameters:
+      - `query`: The search query string
+      - `max_results`: Number of results to return (1-10, default: 5)
+   - Notes:
+      - Use search_web FIRST to discover URLs, then use browser tools to access and extract detailed information from the most relevant results.
 
-**Parameters:**
-- todos: Array of todo items with the following structure:
-  - content: Imperative form describing what needs to be done (e.g., "Search for GAIA benchmark papers")
-  - activeForm: Present continuous form shown during execution (e.g., "Searching for GAIA benchmark papers")
-  - status: One of "pending", "in_progress", or "completed"
+- **Browser Tools**:
+   You have access to a full web browser through Playwright toolkit with the following capabilities:
 
-**Todo Content Requirements:**
-Each todo must be detailed and contain:
-- **What must be done** - Specific research action or information gathering task
-- **Expected deliverable** - What output/artifact will be produced (report structure, data format, file types)
-- **Success criteria** - How to know the task is complete
+   - **create_page**:
+      Creates a new browser page for web navigation with automatic download handling.
+      - Parameters:
+         - `page_title`: Unique identifier for this page (e.g., "research_main", "arxiv_search")
+      - Features:
+         - Viewport: 1366x768 (standard desktop resolution)
+         - Downloads enabled: All file downloads automatically saved to `/Users/claudiomedeiros/Documents/openagent/openagent-core/src/agents/tests/downloads`
 
-**Task Status Management:**
-- Mark tasks as "in_progress" BEFORE starting work on them
-- Keep EXACTLY ONE task as "in_progress" at any time
+   - **navigate_to**:
+      Navigates to a URL in the specified page.
+      - Parameters:
+         - `page_title`: The page identifier from create_page
+         - `url`: Full URL to navigate to (must include http:// or https://)
+      - Notes:
+         - Use search_web FIRST to find URLs, then navigate_to to access them.
+
+   - **extract_page_text**:
+      USE THIS FIRST AFTER NAVIGATING! Extracts structured text content with interactive element markers.
+      - Parameters:
+         - `page_title`: The page identifier
+      - Output Format:
+         - Returns text with special markers for interactive elements (BUTTON, INPUT, LINK, etc.)
+
+   - **get_page_elements**:
+      Lists all interactive elements with their CSS selectors for precise interaction.
+      - Parameters:
+         - `page_title`: The page identifier
+         - `element_types`: Comma-separated list of types to retrieve (e.g., "button,input,link")
+      - Output Format:
+         - Returns indexed list with element descriptions and CSS selectors
+
+   - **capture_screenshot**:
+      Captures visual screenshot of the current page. Use ONLY for VISUAL analysis, NOT for reading text.
+      - Parameters:
+         - `page_title`: The page identifier
+
+   - **click_element**:
+      Clicks on interactive elements using CSS selectors from get_page_elements.
+      - Parameters:
+         - `page_title`: The page identifier
+         - `selector`: CSS selector from get_page_elements output
+
+   - **click_element_by_index**:
+      Alternative method to click elements using their index number from get_page_elements.
+      - Parameters:
+         - `page_title`: The page identifier
+         - `index`: The index number shown in get_page_elements output
+
+   - **fill_input**:
+      Fills input fields with text values using CSS selectors.
+      - Parameters:
+         - `page_title`: The page identifier
+         - `selector`: CSS selector from get_page_elements
+         - `value`: The text value to fill in the input field
 - Mark tasks as "completed" IMMEDIATELY after finishing (don't batch completions)
 - Only mark completed when task is FULLY accomplished (no errors, all requirements met)
 

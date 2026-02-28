@@ -72,7 +72,7 @@ def get_vision_model(temperature: float = 0.2):
     # Using Qwen-VL as vision model via HuggingFace
     # Configurar modelo via HuggingFace Router
     llm = HuggingFaceEndpoint(
-        repo_id="Qwen/Qwen3-Coder-Next",
+        model="Qwen/Qwen3-Coder-Next",
         task="text-generation",
         do_sample=False,
         provider='novita',
@@ -90,10 +90,16 @@ def get_vision_model(temperature: float = 0.2):
 
 
 # Default model instance for backward compatibility
-model = get_vision_model()
+from langchain_azure_ai.chat_models import AzureChatOpenAI
+from langchain_anthropic import ChatAnthropic
+
+model = ChatAnthropic(
+    model="claude-opus-4-6",
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url=os.getenv("AZURE_OPENAI_ENDPOINT")+"anthropic",
+    temperature=0.3
+)
 
 if __name__ == "__main__":
-    # Test the model configuration
-    test_model = get_model()
-    res = test_model.invoke("Olá!")
+    res = model.invoke("Olá!")
     print(res.content)

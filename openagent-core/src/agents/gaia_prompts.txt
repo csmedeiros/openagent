@@ -1,0 +1,8 @@
+Level 1:
+
+- In the video https://www.youtube.com/watch?v=L1vXCYZAYYM, what is the highest number of bird species to be on camera simultaneously?
+
+
+Level 2:
+
+- According to GIthub, when was Regression added to the oldest closed numpy.polynomial issue that has the Regression label in MM/DD/YY?

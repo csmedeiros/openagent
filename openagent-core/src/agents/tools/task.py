@@ -51,7 +51,7 @@ async def message(agent: Literal['coder', 'researcher'], message: str, state: An
     subagent_state['messages'] = [HumanMessage(content=message_string)]
 
     # Invoke subagent with recursion_limit config
-    config = {"recursion_limit": 100}
+    config = {"recursion_limit": 300}
     result = await subagent.ainvoke(subagent_state, config=config)
 
     # Extract last message from subagent and create ToolMessage (like deepagents does)

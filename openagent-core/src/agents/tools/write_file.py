@@ -6,6 +6,9 @@ from langgraph.types import Command
 from langchain.messages import ToolMessage
 from typing import Annotated
 
+# Workspace root - consistent with coder.py and shell_tool
+WORKSPACE_ROOT = r"C:\Users\caiosmedeiros\Documents"
+
 @tool()
 async def write_file(file_path: str, content: str, tool_call_id: Annotated[str, InjectedToolCallId], append: bool = False) -> str:
     """
@@ -16,10 +19,17 @@ async def write_file(file_path: str, content: str, tool_call_id: Annotated[str, 
         content: Content to write to the file
         append: If True, appends to the end of the file. If False, overwrites the file.
     """
+    # Resolve relative paths against workspace root
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(WORKSPACE_ROOT, file_path)
+
+    # Ensure parent directories exist
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
     if append:
         try:
             logger.debug(f"Attempting to append content to file: {file_path}")
-            async with aiofiles.open(file_path, "a") as f:
+            async with aiofiles.open(file_path, "a", encoding="utf-8") as f:
                 await f.write("\n" + content)
             logger.debug(f"Successfully appended content to file: {file_path}")
             return Command(
@@ -37,7 +47,7 @@ async def write_file(file_path: str, content: str, tool_call_id: Annotated[str, 
 
     try:
         logger.debug(f"Attempting to create/overwrite file: {file_path}")
-        async with aiofiles.open(file_path, "w") as f:
+        async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
             await f.write("\n" + content)
         logger.debug(f"Successfully created/overwritten file: {file_path}")
         return Command(

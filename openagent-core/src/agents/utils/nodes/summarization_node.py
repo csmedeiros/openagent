@@ -1,41 +1,39 @@
-from langchain.agents.middleware.summarization import DEFAULT_SUMMARY_PROMPT
-from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.graph import MessagesState
-from langchain_core.messages.utils import count_tokens_approximately
+"""
+Summarization node for LangGraph.
 
-# Trigger de tokens para sumarização
-SUMMARIZATION_TOKEN_TRIGGER = 30000
-# Tokens a preservar após sumarização
-TOKENS_TO_KEEP = 5000
+Provides a conditional edge (should_summarize) and a summarization node
+(summarize_messages_node) that reduces message history when it grows too large.
+Uses message grouping to ensure tool_use/tool_result pairs are never broken.
+"""
+
+from langchain.agents.middleware.summarization import DEFAULT_SUMMARY_PROMPT
+from langchain.messages import HumanMessage, SystemMessage, AIMessage, RemoveMessage, ToolMessage, trim_messages
+from langgraph.graph import MessagesState
+
+from agents.utils.message_truncation import group_messages, _estimate_message_tokens
+
+# Trigger: summarize when estimated tokens exceed this
+SUMMARIZATION_TOKEN_TRIGGER = 100000
+# After summarization, keep approximately this many estimated tokens
+TOKENS_TO_KEEP_AFTER_SUMMARY = 20000
 
 # Import centralized model configuration
-from agents.models import get_model
+from agents.models import model
 
-model = get_model(temperature=0.2)
-
+token_counter = model.get_num_tokens_from_messages
 
 
 def should_summarize(state: MessagesState) -> str:
     """
-    Conditional edge para LangGraph que verifica se deve resumir mensagens.
-
-    Retorna 'summarize' se o número de tokens exceder o trigger,
-    caso contrário retorna 'agent' para prosseguir diretamente.
-
-    Args:
-        state: Estado do MessagesState contendo as mensagens
-
-    Returns:
-        'summarize' se deve resumir, 'agent' caso contrário
+    Conditional edge: returns 'summarize' if estimated tokens exceed trigger,
+    'agent' otherwise.
     """
     messages = state.get("messages", [])
 
     if not messages:
         return "agent"
 
-    # Conta tokens aproximadamente
-    total_tokens = count_tokens_approximately(messages)
-
+    total_tokens = token_counter(messages)
     if total_tokens >= SUMMARIZATION_TOKEN_TRIGGER:
         return "summarize"
 
@@ -44,75 +42,55 @@ def should_summarize(state: MessagesState) -> str:
 
 def summarize_messages_node(state: MessagesState) -> dict:
     """
-    Nó do LangGraph que resume mensagens quando o trigger é atingido.
+    Summarization node that reduces message history.
 
-    Funciona como o SummarizationMiddleware, extraindo o contexto mais relevante
-    das mensagens para liberar espaço no histórico da conversa.
-
-    Args:
-        state: Estado do MessagesState contendo as mensagens
-
-    Returns:
-        Dicionário com as novas mensagens (resumo + mensagens recentes preservadas)
+    Uses group-based approach to find a safe cutoff point, then removes
+    old messages via RemoveMessage. Generates a brief summary if possible,
+    otherwise just drops old messages with a truncation notice.
     """
     messages = state.get("messages", [])
 
     if not messages:
         return {"messages": []}
-
-    # Verifica se as mensagens já cabem no limite de tokens
-    total_tokens = count_tokens_approximately(messages)
-    if total_tokens <= TOKENS_TO_KEEP:
-        return {"messages": messages}
-
-    # Encontra o ponto de corte para preservar aproximadamente TOKENS_TO_KEEP tokens
-    # Itera de trás para frente acumulando tokens até atingir o limite
-    cutoff_index = len(messages)
-    accumulated_tokens = 0
-
-    for i in range(len(messages) - 1, -1, -1):
-        msg_tokens = count_tokens_approximately([messages[i]])
-
-        if accumulated_tokens + msg_tokens <= TOKENS_TO_KEEP:
-            accumulated_tokens += msg_tokens
-            cutoff_index = i
-        else:
-            # Atingimos o limite de tokens
-            break
-
-    # Garante que pelo menos 1 mensagem seja preservada
-    if cutoff_index >= len(messages):
-        cutoff_index = len(messages) - 1
-
-    # Garante que haja mensagens para resumir
-    if cutoff_index == 0:
-        # Todas as mensagens serão preservadas (situação improvável)
-        return {"messages": messages}
-
-    # Particiona mensagens: antigas para resumir e recentes para preservar
-    messages_to_summarize = messages[:cutoff_index]
-    preserved_messages = messages[cutoff_index:]
-
-    # Formata as mensagens antigas para sumarização
-    formatted_messages = "\n".join([
-        f"{msg.__class__.__name__}: {msg.content}"
-        for msg in messages_to_summarize
-    ])
-
-    try:
-        # Invoca o modelo com o prompt de sumarização
-        response = model.invoke(DEFAULT_SUMMARY_PROMPT.format(messages=formatted_messages))
-        summary_text = response.content.strip()
-
-        # Cria mensagem de resumo
-        summary_message = SystemMessage(
-            content=f"Here is a summary of the conversation to date:\n\n{summary_text}"
+        
+    trimmed_messages = trim_messages(
+            messages=messages,
+            max_tokens=TOKENS_TO_KEEP_AFTER_SUMMARY,
+            strategy='last',
+            start_on=['human', 'ai', 'tool'],
+            token_counter='approximate',
+            include_system=True,
+            allow_partial=False
         )
 
-        # Retorna resumo + mensagens preservadas
-        return {"messages": [summary_message] + preserved_messages}
+    # Identify removed messages (in original but not in trimmed)
+    trimmed_ids = {m.id for m in trimmed_messages}
+    removed_messages = [m for m in messages if m.id not in trimmed_ids]
+
+    # Format removed messages for the summary prompt
+    formatted = "\n".join([
+        f"{msg.__class__.__name__}: {str(msg.content)[:200]}"
+        for msg in removed_messages
+        if hasattr(msg, 'content') and msg.content
+        and not isinstance(msg, ToolMessage)
+    ])
+
+    # Hard limit on summary input
+    if len(formatted) > 5000:
+        formatted = formatted[:5000] + "\n... [truncated]"
+
+    try:
+        response = model.invoke(DEFAULT_SUMMARY_PROMPT.format(messages=formatted))
+        summary_text = response.content.strip()
+        summary = HumanMessage(
+            content=f"[CONVERSATION SUMMARY]\n\n{summary_text}\n\n[END OF SUMMARY]"
+        )
+        
+        return {"messages": trimmed_messages + [summary]}
 
     except Exception as e:
-        # Em caso de erro, mantém as mensagens originais
         print(f"Error generating summary: {e!s}")
-        return {"messages": messages}
+        fallback = HumanMessage(
+            content="[Previous conversation was truncated. Continue from the recent messages.]"
+        )
+        return {"messages": trimmed_messages + [fallback]}

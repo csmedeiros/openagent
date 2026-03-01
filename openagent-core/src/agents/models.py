@@ -90,7 +90,7 @@ def get_vision_model(temperature: float = 0.2):
 
 
 # Default model instance for backward compatibility
-from langchain_azure_ai.chat_models import AzureChatOpenAI
+# from langchain_azure_ai.chat_models import AzureChatOpenAI
 from langchain_anthropic import ChatAnthropic
 
 model = ChatAnthropic(

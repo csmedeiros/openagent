@@ -15,11 +15,11 @@ async def message(agent: Literal['coder', 'researcher'], message: str, state: An
         agent: The specialized agent to communicate with ('coder' or 'researcher')
         message: The message content to send to the agent
     """
-    from agents.researcher import researcher
+    from agents.researcher import build_researcher
     from agents.coder import coder
 
     # Select subagent
-    subagent = researcher if agent == 'researcher' else coder
+    subagent = await build_researcher() if agent == 'researcher' else coder
 
     # Build message with context
     message_string = \

@@ -103,7 +103,7 @@ AGENT_REGISTRY = {
     },
     "researcher": {
         "module": "agents.researcher",
-        "attr": "researcher",
+        "attr": "build_researcher",
         "label": "Researcher",
         "icon": "🔍",
         "description": "Research assistant with browser and web search",
@@ -198,15 +198,19 @@ def _summarize_tool_output(output) -> tuple[str, bool]:
 
 # ─── Agent Loading ───────────────────────────────────────────────────────────
 
-def load_agent(name: str):
+async def load_agent(name: str):
     """Import and return the compiled LangGraph for *name*."""
+    import inspect
     info = AGENT_REGISTRY[name]
     mod = importlib.import_module(info["module"])
     # Re-silence loggers — agent modules (e.g. coder.py) call
     import mlflow
     mlflow.langchain.autolog()
     _silence_noisy_loggers()
-    return getattr(mod, info["attr"])
+    attr = getattr(mod, info["attr"])
+    if inspect.iscoroutinefunction(attr):
+        return await attr()
+    return attr
 
 
 # ─── UI Components ───────────────────────────────────────────────────────────
@@ -385,7 +389,7 @@ async def run_cli(agent_name: str):
         f"[bold blue]Loading {AGENT_REGISTRY[agent_name]['label']} agent…",
         spinner="dots",
     ):
-        graph = load_agent(agent_name)
+        graph = await load_agent(agent_name)
         checkpointer = MemorySaver()
         graph.checkpointer = checkpointer
 
@@ -455,7 +459,7 @@ async def run_cli(agent_name: str):
                     f"[bold blue]Switching to {AGENT_REGISTRY[agent_name]['label']}…",
                     spinner="dots",
                 ):
-                    graph = load_agent(agent_name)
+                    graph = await load_agent(agent_name)
                     checkpointer = MemorySaver()
                     graph.checkpointer = checkpointer
                     thread_id = f"cli-{int(time.time())}"

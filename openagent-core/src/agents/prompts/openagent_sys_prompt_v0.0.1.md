@@ -325,3 +325,14 @@ In the current conversation, the following files were already read or written:
 <FILES>
 
 </files_used>
+
+<response_format>
+
+**Response Format:**
+When you finish the task, your final message back to OpenAgent should be as simple at the question asks for. For example:
+- The question is about a date -> answer simply the only the date. Like '07/12/2004', '12/05/23' or other format as provided.
+- The question is about a word or sentence. Answer ONLY the sentence. Like 'bird' or 'I got the blues', etc.
+
+**The answer MUST be simple and direct.**
+
+</response_format>

@@ -11,7 +11,7 @@ from agents.models import model
 
 import os
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_CURRENT_DIR, "prompts/researcher_sys_prompt_v0.0.1.md"), "r", encoding='utf-8') as f:
+with open(os.path.join(_CURRENT_DIR, "prompts/researcher_sys_prompt_v0.0.2.md"), "r", encoding='utf-8') as f:
     sys_prompt = f.read()
 
 
@@ -54,14 +54,21 @@ class ResearcherState(MessagesState):
 from langchain.messages import ToolMessage
 
 
-# Combine all tools including custom browser tools
-tools = [
-    write_todos,
-    search_web,
-    create_new_page, navigate_to, extract_page_text, capture_screenshot,
-    get_page_elements, click_element, click_element_by_index, refresh_page_elements,
-    fill_input
-]
+
+# Importação do loader async das tools do scrapling
+from agents.tools.scrapling_tools import get_scrapling_tools
+
+# Função para compor a lista de tools dinamicamente
+async def get_all_tools():
+    base_tools = [
+        write_todos,
+        search_web,
+        # create_new_page, navigate_to, extract_page_text, capture_screenshot,
+        # get_page_elements, click_element, click_element_by_index, refresh_page_elements,
+        # fill_input
+    ]
+    scrapling = await get_scrapling_tools()
+    return base_tools + scrapling
 
 # Initialize browser - this will be None until async initialization
 
@@ -80,38 +87,48 @@ async def initialize_browser(state: ResearcherState):
         }
     return {}
 
-def agent(state: ResearcherState) -> ResearcherState:
-    """Agent node that uses custom browser tools"""
-    llm = model.bind_tools(tools=tools)
-    response = llm.invoke([SystemMessage(content=sys_prompt)] + state["messages"])
-    return {"messages": [response]}
+
+def agent_factory(tools):
+    def agent(state: ResearcherState) -> ResearcherState:
+        """Agent node that uses custom browser tools"""
+        llm = model.bind_tools(tools=tools)
+        response = llm.invoke([SystemMessage(content=sys_prompt)] + state["messages"])
+        return {"messages": [response]}
+    return agent
 
 from langgraph.prebuilt import ToolNode, tools_condition
-
-tool_node = ToolNode(tools=tools, handle_tool_errors=True)
-
 from agents.utils.nodes import *
 
-builder = StateGraph(ResearcherState)
+import asyncio
 
-builder.add_node("tools", tool_node)
-builder.add_node("agent", agent)
-builder.add_node("summarize", summarize_messages_node)
-builder.add_node("initialize_browser", initialize_browser)
+async def build_researcher():
+    tools = await get_all_tools()
+    tool_node = ToolNode(tools=tools, handle_tool_errors=True)
+    agent = agent_factory(tools)
 
-# Initialize browser once at start
-builder.add_edge(START, "initialize_browser")
+    builder = StateGraph(ResearcherState)
+    builder.add_node("tools", tool_node)
+    builder.add_node("agent", agent)
+    builder.add_node("summarize", summarize_messages_node)
+    builder.add_node("initialize_browser", initialize_browser)
 
-# After initialization, check if summarization is needed before agent
-builder.add_conditional_edges("initialize_browser", should_summarize)
-builder.add_edge("summarize", "agent")
+    # Initialize browser once at start
+    builder.add_edge(START, "initialize_browser")
 
-# Agent can call tools or finish (END)
-builder.add_conditional_edges("agent", tools_condition)
+    # After initialization, check if summarization is needed before agent
+    builder.add_conditional_edges("initialize_browser", should_summarize)
+    builder.add_edge("summarize", "agent")
 
-# After tools execute, go back to agent
-builder.add_edge("tools", "agent")
+    # Agent can call tools or finish (END)
+    builder.add_conditional_edges("agent", tools_condition)
 
-# Compile without checkpointer to avoid pickle errors with Playwright resources
-# Playwright browser/context objects cannot be serialized
-researcher = builder.compile()
+    # After tools execute, go back to agent
+    builder.add_edge("tools", "agent")
+
+    # Compile without checkpointer to avoid pickle errors with Playwright resources
+    # Playwright browser/context objects cannot be serialized
+    return builder.compile()
+
+# Exporte uma função async para obter o researcher
+async def get_researcher():
+    return await build_researcher()

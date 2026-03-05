@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenAgent</title>
+  <meta name="description" content="OpenAgent — Sistema multi-agente inteligente com LangGraph. Orquestre tarefas de pesquisa, código e automação.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════ SIDEBAR ═══ -->
+  <aside id="sidebar" class="sidebar">
+
+    <!-- Brand -->
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M2 17l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="brand-name">OpenAgent</span>
+      </div>
+      <button id="btn-sidebar-toggle" class="icon-btn" title="Recolher sidebar" aria-label="Recolher sidebar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Agent Selector -->
+    <div class="sidebar-section">
+      <p class="sidebar-label">AGENTE</p>
+      <div id="agent-selector" class="agent-tabs">
+        <button class="agent-tab active" data-agent="openagent" id="tab-openagent">
+          <span class="agent-tab-icon">🤖</span>
+          <span>OpenAgent</span>
+        </button>
+        <button class="agent-tab" data-agent="coder" id="tab-coder">
+          <span class="agent-tab-icon">⌨️</span>
+          <span>Coder</span>
+        </button>
+        <button class="agent-tab" data-agent="researcher" id="tab-researcher">
+          <span class="agent-tab-icon">🔍</span>
+          <span>Researcher</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="sidebar-section">
+      <div class="search-bar">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="search-input" type="text" placeholder="Buscar conversas..." autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- Thread List -->
+    <div class="sidebar-section sidebar-threads">
+      <p class="sidebar-label">RECENTES</p>
+      <div id="thread-list" class="thread-list">
+        <!-- JS populated -->
+      </div>
+    </div>
+
+    <!-- New Chat -->
+    <div class="sidebar-footer">
+      <button id="btn-new-chat" class="new-chat-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        <span>Novo chat</span>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════ MAIN ═══ -->
+  <main id="main" class="main">
+
+    <!-- Chat Header -->
+    <header class="chat-header">
+      <div class="chat-header-left">
+        <button id="btn-sidebar-open" class="icon-btn sidebar-toggle-mobile" title="Abrir sidebar" aria-label="Abrir sidebar" style="display:none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12h18M3 6h18M3 18h18"/>
+          </svg>
+        </button>
+        <div id="chat-title-area" class="chat-title-area">
+          <span class="chat-project-label">Agente ativo:</span>
+          <span id="active-agent-label" class="chat-agent-badge active">🤖 OpenAgent</span>
+        </div>
+      </div>
+      <div class="chat-header-right">
+        <div id="connection-status" class="connection-dot connected" title="Conectado ao LangGraph"></div>
+        <button id="btn-clear-chat" class="icon-btn" title="Limpar conversa" aria-label="Limpar conversa">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Messages Area -->
+    <div id="messages-area" class="messages-area">
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="var(--accent)" stroke-width="1.2" stroke-linejoin="round"/>
+            <path d="M2 17l10 5 10-5" stroke="var(--accent)" stroke-width="1.2" stroke-linejoin="round" opacity="0.5"/>
+            <path d="M2 12l10 5 10-5" stroke="var(--accent)" stroke-width="1.2" stroke-linejoin="round" opacity="0.75"/>
+          </svg>
+        </div>
+        <h2 class="empty-title">OpenAgent</h2>
+        <p class="empty-sub">Como posso ajudar você hoje?</p>
+        <div class="empty-suggestions">
+          <button class="suggestion-chip" data-prompt="Pesquise as últimas notícias sobre inteligência artificial">🔍 Pesquisar notícias sobre IA</button>
+          <button class="suggestion-chip" data-prompt="Escreva um script Python que leia um CSV e gere estatísticas descritivas">⌨️ Script Python para CSV</button>
+          <button class="suggestion-chip" data-prompt="Liste todos os arquivos Python no projeto atual e conte quantas linhas cada um tem">📁 Analisar arquivos do projeto</button>
+        </div>
+      </div>
+
+      <!-- Messages will be injected here by JS -->
+
+    </div>
+
+    <!-- Tool Activity Bar (visible during streaming) -->
+    <div id="tool-bar" class="tool-bar" style="display:none;">
+      <div id="tool-pills" class="tool-pills"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-wrapper">
+        <button id="btn-attach" class="input-icon-btn" title="Anexar arquivo" aria-label="Anexar arquivo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.44 11.05l-9.19 9.19A6 6 0 0 1 3.64 11.64l9.19-9.19A4 4 0 0 1 18.66 8l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+        <textarea
+          id="msg-input"
+          class="msg-input"
+          placeholder="Descreva o que você quer fazer ou analisar…"
+          rows="1"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+        <button id="btn-send" class="send-btn" title="Enviar mensagem" aria-label="Enviar mensagem" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <p class="input-disclaimer">OpenAgent pode cometer erros. Verifique informações importantes antes de executar.</p>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

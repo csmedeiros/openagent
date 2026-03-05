@@ -1,0 +1,10 @@
+{
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "openagent": "openagent-core/src/agents/openagent.py:oa"
+  },
+  "env": "./.env",
+  "python_version": "3.13"
+}

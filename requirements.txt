@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenAgent — Dependências raiz (API + Web)
+# Combina openagent-core/requirements.txt com as extras da API e do frontend.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Core openagent-core (espelha openagent-core/requirements.txt) ─────────────
+langchain
+langchain-community
+langgraph
+langgraph-cli[inmem]
+
+# LLM Providers
+langchain-groq==0.2.1
+langchain-openai==0.2.14
+
+# RAG / Scraping
+"scrapling[ai]"
+
+# Utils
+python-dotenv==1.0.1
+pydantic==2.10.5
+pydantic-core==2.27.2
+aiofiles==24.1.0
+
+# Observability
+mlflow
+langfuse>=3.0.0
+
+# Build
+setuptools>=65.0.0
+wheel>=0.40.0
+
+# ── API FastAPI ───────────────────────────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
+
+# ── Frontend Flask ────────────────────────────────────────────────────────────
+flask>=3.1.0
+flask-cors>=5.0.0

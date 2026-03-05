@@ -6,8 +6,8 @@ from langgraph.types import Command
 
 from typing import Annotated
 
-# Workspace root - consistent with coder.py and shell_tool
-WORKSPACE_ROOT = r"C:\Users\caiosmedeiros\Documents"
+# Workspace root — override with the WORKSPACE_ROOT environment variable
+WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", r"C:\Users\caiosmedeiros\Documents\openagent-tests")
 
 @tool(parse_docstring=True)
 async def read_file(file_path: str, start: int, end: int, tool_call_id: Annotated[str, InjectedToolCallId]) -> str:

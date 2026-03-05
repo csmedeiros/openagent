@@ -24,22 +24,24 @@ import asyncio
 import importlib
 
 # ─── Path Setup ──────────────────────────────────────────────────────────────
-# Ajuste para funcionar na raiz do projeto
-_SRC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openagent-core", "src")
+_SRC_DIR = "openagent-core/src"
 if _SRC_DIR not in sys.path:
-    sys.path.insert(0, _SRC_DIR)
+    sys.path.append(_SRC_DIR)
 
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=os.path.join("openagent-core", ".env"))
-
+load_dotenv()
 
 # ─── Silence noisy loggers that pollute streaming output ─────────────────────
 import logging
 import warnings
 
 def _silence_noisy_loggers():
-    """Aggressively suppress mlflow, Alembic, SQLAlchemy and OpenTelemetry log noise."""
-    for name in [
+    """Aggressively suppress mlflow and OpenTelemetry log noise.
+
+    Called both at startup AND after agent loading, because
+    ``mlflow.langchain.autolog()`` in ``coder.py`` reconfigures handlers.
+    """
+    for name in (
         "mlflow",
         "mlflow.utils.autologging_utils",
         "mlflow.tracking",
@@ -48,8 +50,7 @@ def _silence_noisy_loggers():
         "opentelemetry.attributes",
         "opentelemetry.trace",
         "alembic",
-        "sqlalchemy",
-    ]:
+    ):
         logger = logging.getLogger(name)
         logger.setLevel(logging.CRITICAL)
         logger.handlers = []
@@ -61,11 +62,8 @@ def _silence_noisy_loggers():
 
     warnings.filterwarnings("ignore", module="mlflow")
     warnings.filterwarnings("ignore", module="opentelemetry")
-    warnings.filterwarnings("ignore", module="alembic")
-    warnings.filterwarnings("ignore", module="sqlalchemy")
 
 _silence_noisy_loggers()
-
 
 # ─── Rich Imports ────────────────────────────────────────────────────────────
 from rich.console import Console
@@ -106,17 +104,17 @@ AGENT_REGISTRY = {
     },
     "researcher": {
         "module": "agents.researcher",
-        "attr": "researcher",
+        "attr": "build_researcher",
         "label": "Researcher",
         "icon": "🔍",
         "description": "Research assistant with browser and web search",
     },
     "openagent": {
         "module": "agents.openagent",
-        "attr": "oa",
+        "attr": "get_openagent",
         "label": "OpenAgent",
         "icon": "🤖",
-        "description": "General-purpose orchestrator agent",
+        "description": "General-purpose AI agent",
     },
 }
 
@@ -201,17 +199,19 @@ def _summarize_tool_output(output) -> tuple[str, bool]:
 
 # ─── Agent Loading ───────────────────────────────────────────────────────────
 
-
-# Suporte para carregar o researcher de forma assíncrona
 async def load_agent(name: str):
     """Import and return the compiled LangGraph for *name*."""
+    import inspect
     info = AGENT_REGISTRY[name]
     mod = importlib.import_module(info["module"])
+    # Re-silence loggers — agent modules (e.g. coder.py) call
+    import mlflow
+    mlflow.langchain.autolog()
     _silence_noisy_loggers()
-    # Se for researcher, chame a função async get_researcher
-    if name == "researcher":
-        return await mod.get_researcher()
-    return getattr(mod, info["attr"])
+    attr = getattr(mod, info["attr"])
+    if inspect.iscoroutinefunction(attr):
+        return await attr()
+    return attr
 
 
 # ─── UI Components ───────────────────────────────────────────────────────────
@@ -382,7 +382,6 @@ async def stream_response(graph, user_input: str, config: dict):
 
 # ─── Main Loop ───────────────────────────────────────────────────────────────
 
-
 async def run_cli(agent_name: str):
     """Interactive REPL for the selected agent."""
 
@@ -495,7 +494,6 @@ async def run_cli(agent_name: str):
 
 
 # ─── Entry Point ─────────────────────────────────────────────────────────────
-
 
 def main():
     parser = argparse.ArgumentParser(

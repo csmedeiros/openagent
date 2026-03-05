@@ -1,0 +1,37 @@
+services:
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openagent:latest
+    container_name: openagent-api
+    command: python -m uvicorn api:app --host 0.0.0.0 --port 8080
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - WORKSPACE_ROOT=C:\openagent-workspace
+      - UPLOAD_DIR=C:\openagent-workspace\uploads
+      - API_PORT=8080
+    volumes:
+      # Mount a host folder as the agent's workspace so files persist
+      - ${HOST_WORKSPACE:-C:\openagent-workspace}:C:\openagent-workspace
+    restart: unless-stopped
+
+  # ── Flask frontend ───────────────────────────────────────────────────────────
+  web:
+    image: openagent:latest           # reuses the same built image
+    container_name: openagent-web
+    command: python web.py
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - WEB_PORT=3000
+    depends_on:
+      - api
+    restart: unless-stopped

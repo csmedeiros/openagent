@@ -25,8 +25,19 @@ from agents.utils.logging import logger
 import os
 
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(_CURRENT_DIR, "prompts/openagent_sys_prompt_v0.0.1.md"), "r") as f:
+with open(os.path.join(_CURRENT_DIR, "prompts/openagent_sys_prompt_v0.0.2.md"), "r", encoding='utf-8') as f:
     sys_prompt = f.read()
+
+
+# ── Structured output schema ─────────────────────────────────────────────────
+
+class AgentResponse(BaseModel):
+    """Structured output for every agent text response."""
+    content: str = Field(description="The response text to show to the user.")
+    is_last_message: bool = Field(
+        description="True if this is the final message of your current turn (no more actions will follow). "
+                    "False if you plan to take more actions or send more messages before finishing."
+    )
 
 
 # Define openagent graph state
@@ -53,50 +64,70 @@ class OpenAgentState(MessagesState):
     files: Annotated[List[str], add]
     todos: Annotated[NotRequired[list[Todo]], OmitFromInput]
     browser_initialized: bool = False
+    is_last_message: bool = False
 
 from agents.utils.nodes.summarization_node import should_summarize, summarize_messages_node
 
-builder = StateGraph(OpenAgentState)
-
-tools = [write_file, read_file, shell_tool, write_todos, message]
-tools.extend(FilesystemFileSearchMiddleware(root_path="/Users/claudiomedeiros/Documents/openagent/openagent-core/src/agents/tests").tools)
+# Importação do loader async das tools do scrapling
+from agents.tools.scrapling_tools import get_scrapling_tools
 
 
-from agents.utils.message_truncation import truncate_messages
+async def agent(state: OpenAgentState) -> OpenAgentState:
+    """Agent node"""
+    tools = [
+        write_file,
+        read_file,
+        edit_file,
+        shell_tool,
+        write_todos,
+        search_web,
+    ]
+    tools.extend(await get_scrapling_tools())
 
-def agent(state: OpenAgentState) -> OpenAgentState:
-    """Agent node that uses custom browser tools"""
+    _workdir = os.environ.get("WORKSPACE_ROOT", r"C:\Users\caiosmedeiros\Documents\openagent-tests")
     llm = model.bind_tools(tools=tools)
+    response = llm.invoke(
+        [SystemMessage(content=sys_prompt.replace("<FILES>", "\n".join(state["files"])).replace("<WORKDIR>", _workdir))] + state["messages"]
+    )
+    is_last_message = not bool(response.tool_calls)
+    return {"messages": [response], "is_last_message": is_last_message}
 
-    # Hard truncation safety net - prevents exceeding API token limits
-    # messages = truncate_messages(state["messages"])
 
-    response = llm.invoke([SystemMessage(content=sys_prompt.replace("<FILES>", "\n".join(state["files"])))] + state['messages'])
-    return {"messages": [response]}
-
-builder.add_node("summarize", summarize_messages_node)
-builder.add_node("agent", agent)
-builder.add_node("tools", ToolNode(tools=tools, handle_tool_errors=True))
-
-builder.add_conditional_edges(START, should_summarize)
-builder.add_conditional_edges("agent", tools_condition)
-
-# tools → check if summarization needed before returning to agent
-builder.add_conditional_edges("tools", should_summarize)
-builder.add_edge("summarize", "agent")
-
-from langfuse.langchain import CallbackHandler
-from langchain_azure_ai.callbacks.tracers import AzureAIOpenTelemetryTracer
-
-# callback = CallbackHandler()
-# callback = AzureAIOpenTelemetryTracer(connection_string=os.getenv("AZURE_TRACING_CONNECTION_STRING"))
 import mlflow
-
 mlflow.set_tracking_uri("http://127.0.0.1:1234")
 mlflow.set_experiment("OpenAgent")
 mlflow.langchain.autolog()
 
-oa = builder.compile()
+
+async def build_openagent():
+    tools = [
+        write_file,
+        read_file,
+        edit_file,
+        shell_tool,
+        write_todos,
+        search_web,
+    ]
+    tools.extend(await get_scrapling_tools())
+    tool_node = ToolNode(tools=tools, handle_tool_errors=True)
+
+    builder = StateGraph(OpenAgentState)
+    builder.add_node("summarize", summarize_messages_node)
+    builder.add_node("agent", agent)
+    builder.add_node("tools", tool_node)
+
+    builder.add_conditional_edges(START, should_summarize)
+    builder.add_conditional_edges("agent", tools_condition)
+
+    # tools → check if summarization needed before returning to agent
+    builder.add_conditional_edges("tools", should_summarize)
+    builder.add_edge("summarize", "agent")
+
+    return builder.compile()
+
+
+async def get_openagent():
+    return await build_openagent()
 
 # oa.config = {
 #     "callbacks": [callback]

@@ -20,7 +20,14 @@ TOKENS_TO_KEEP_AFTER_SUMMARY = 20000
 # Import centralized model configuration
 from agents.models import model
 
-token_counter = model.get_num_tokens_from_messages
+def token_counter(messages) -> int:
+    """Count tokens safely, falling back to local estimator if the model
+    doesn't have a valid model_name (e.g. custom Azure deployments)."""
+    try:
+        return model.get_num_tokens_from_messages(messages)
+    except (AttributeError, KeyError):
+        # Fallback: use the local approximation already in this project
+        return sum(_estimate_message_tokens(m) for m in messages)
 
 
 def should_summarize(state: MessagesState) -> str:

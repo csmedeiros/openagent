@@ -1,105 +1,127 @@
 """
 Centralized model configuration for OpenAgent.
-This module provides a single source of truth for LLM configuration across all agents.
+
+LLM provider is configured via environment variables (or the Settings UI):
+
+  MODEL_PROVIDER   - LangChain provider name, e.g. openai, anthropic, groq,
+                     huggingface_endpoint, azure_openai.  Default: anthropic
+  MODEL_NAME       - Model/deployment name.  Default: claude-opus-4-6
+  MODEL_API_KEY    - API key for the provider.  Falls back to provider-specific
+                     env vars (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+  MODEL_BASE_URL   - Optional custom base URL (useful for proxies / Azure).
+
+All variables can be updated at runtime via the API's POST /settings endpoint
+without restarting the server.
 """
+
 from dotenv import load_dotenv
 import os
 
-# Load .env from project root (works for local development and LangGraph Server)
+# Load .env from project root
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.join(_CURRENT_DIR, "../..")
 load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import init_chat_model  # LangChain ≥ 0.3
 
-# Cache for model instances to avoid recreating them
-_model_cache = {}
+# ─── Model cache ──────────────────────────────────────────────────────────────
+# Keyed by (provider, name, base_url, temperature) to avoid recreating identical
+# instances.  Call clear_model_cache() after a settings change.
+_model_cache: dict = {}
+
+
+def _build_kwargs(temperature: float, base_url: str | None, api_key: str | None) -> dict:
+    kwargs: dict = {"temperature": temperature}
+    if api_key:
+        kwargs["api_key"] = api_key
+    if base_url:
+        kwargs["base_url"] = base_url
+    return kwargs
+
 
 def get_model(temperature: float = 0.2):
     """
-    Get the configured DeepSeek model instance (text-only).
+    Return the configured chat model for the agent.
 
-    Args:
-        temperature: Controls randomness in generation (0.0 = deterministic, 1.0 = creative)
-
-    Returns:
-        ChatHuggingFace: Configured model instance ready for use
-
-    Note:
-        This model does NOT support vision/images. Use get_vision_model() for multimodal tasks.
+    Provider / model / credentials are read from environment variables so they
+    can be changed at runtime via the Settings UI without restarting the server.
     """
-    # Use cached instance if available
-    cache_key = f"deepseek_{temperature}"
+    provider  = os.environ.get("MODEL_PROVIDER", "anthropic")
+    name      = os.environ.get("MODEL_NAME",     "claude-opus-4-6")
+    api_key   = os.environ.get("MODEL_API_KEY")
+    base_url  = os.environ.get("MODEL_BASE_URL")
+
+    cache_key = (provider, name, base_url, temperature)
     if cache_key in _model_cache:
         return _model_cache[cache_key]
 
-    llm = HuggingFaceEndpoint(
-        repo_id="deepseek-ai/DeepSeek-V3.2",
-        task="text-generation",
-        do_sample=False,
-        provider='novita',
-        temperature=temperature,
-    )
+    kwargs = _build_kwargs(temperature, base_url, api_key)
+    instance = init_chat_model(model=name, model_provider=provider, **kwargs)
 
-    model = ChatHuggingFace(llm=llm)
-    # Add profile information for SummarizationMiddleware
-    model.profile = {"max_input_tokens": 64000}
-
-    _model_cache[cache_key] = model
-    return model
+    _model_cache[cache_key] = instance
+    return instance
 
 
 def get_vision_model(temperature: float = 0.2):
     """
-    Get a vision-capable model for multimodal tasks (text + images).
+    Return a vision-capable model.
 
-    Args:
-        temperature: Controls randomness in generation (0.0 = deterministic, 1.0 = creative)
-
-    Returns:
-        ChatHuggingFace: Configured vision model instance
-
-    Example:
-        >>> from langchain_core.messages import HumanMessage
-        >>> model = get_vision_model()
-        >>> message = HumanMessage(content=[
-        ...     {"type": "text", "text": "What's in this image?"},
-        ...     {"type": "image_url", "image_url": {"url": "data:image/png;base64,..."}}
-        ... ])
-        >>> response = model.invoke([message])
+    Falls back to MODEL_VISION_NAME / get_model() if no dedicated vision model
+    is configured.
     """
-    # Using Qwen-VL as vision model via HuggingFace
-    # Configurar modelo via HuggingFace Router
-    llm = HuggingFaceEndpoint(
-        model="Qwen/Qwen3-Coder-Next",
-        task="text-generation",
-        do_sample=False,
-        provider='novita',
-        temperature=temperature,
-        max_new_tokens=65536
-    )
-    model = ChatHuggingFace(
-        llm=llm,
-    )
+    provider  = os.environ.get("MODEL_PROVIDER", "anthropic")
+    name      = os.environ.get("MODEL_VISION_NAME",
+                               os.environ.get("MODEL_NAME", "claude-opus-4-6"))
+    api_key   = os.environ.get("MODEL_API_KEY")
+    base_url  = os.environ.get("MODEL_BASE_URL")
 
-    # Add profile information for SummarizationMiddleware
-    model.profile = {"max_input_tokens": 262144}
+    cache_key = (f"vision_{provider}", name, base_url, temperature)
+    if cache_key in _model_cache:
+        return _model_cache[cache_key]
 
-    return model
+    kwargs = _build_kwargs(temperature, base_url, api_key)
+    instance = init_chat_model(model=name, model_provider=provider, **kwargs)
+
+    _model_cache[cache_key] = instance
+    return instance
 
 
-# Default model instance for backward compatibility
-# from langchain_azure_ai.chat_models import AzureChatOpenAI
-from langchain_anthropic import ChatAnthropic
+def clear_model_cache():
+    """Invalidate the model cache.  Call this after updating env vars."""
+    _model_cache.clear()
 
-model = ChatAnthropic(
-    model="claude-opus-4-6",
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=os.getenv("AZURE_OPENAI_ENDPOINT")+"anthropic",
-    temperature=0.3
-)
+
+# ─── Default model instance (backward compat) ────────────────────────────────
+# Created lazily so env vars set after import are respected.
+class _LazyModel:
+    """Proxy that forwards attribute access to the real model on first use."""
+
+    _instance = None
+
+    def _get(self):
+        if self._instance is None:
+            self._instance = get_model()
+        return self._instance
+
+    def __getattr__(self, name):
+        return getattr(self._get(), name)
+
+    def __call__(self, *args, **kwargs):
+        return self._get()(*args, **kwargs)
+
+    def invoke(self, *args, **kwargs):
+        return self._get().invoke(*args, **kwargs)
+
+    def bind_tools(self, *args, **kwargs):
+        return self._get().bind_tools(*args, **kwargs)
+
+    def ainvoke(self, *args, **kwargs):
+        return self._get().ainvoke(*args, **kwargs)
+
+
+model = _LazyModel()
+
 
 if __name__ == "__main__":
-    res = model.invoke("Olá!")
+    res = get_model().invoke("Olá!")
     print(res.content)

@@ -1,238 +1,228 @@
 # 🤖 OpenAgent
 
+OpenAgent is a general-purpose AI agent built with [LangGraph](https://langchain-ai.github.io/langgraph/). It combines web research, file system operations, shell execution, and code capabilities into a single autonomous agent — all accessible from an interactive terminal CLI.
 
-OpenAgent é um sistema multi-agente com LangGraph que combina:
-- **OpenAgent**: Orquestrador principal, coordena e delega tarefas entre agentes especialistas.
-- **Researcher**: Agente especializado em pesquisa web, scraping e extração de informações usando Playwright (navegação real, extração de texto, interação com páginas, screenshots, etc.).
-- **Coder**: Agente especializado em escrita, modificação e análise de código, automação de tarefas, manipulação de arquivos e execução de comandos shell.
+---
 
-### Ferramentas dos Agentes
+## 🧰 Tools
 
-**OpenAgent**
-- Planejamento de tarefas (write_todos)
-- Leitura e escrita de arquivos (read_file, write_file)
-- Busca por arquivos (glob_search, grep_search)
-- Execução de comandos shell (shell_tool)
-- Delegação de tarefas para subagentes (message)
+OpenAgent (v0.0.2) is a standalone general-purpose agent with the following tools:
 
-**Researcher**
-- Pesquisa web e scraping com Playwright:
-        - Navegação automatizada (create_page, navigate_to)
-        - Extração de texto estruturado (extract_page_text)
-        - Listagem e interação com elementos (get_page_elements, click_element, fill_input)
-        - Captura de screenshots (capture_screenshot)
-        - Busca web (search_web)
-        - Planejamento de tarefas (write_todos)
+### 📋 Task & File Management
+| Tool | Description |
+|---|---|
+| `write_todos` | Create and update a structured task plan (must be used first) |
+| `read_file` | Read file contents with line range support |
+| `write_file` | Write or append content to files |
+| `glob_search` | Find files matching a glob pattern |
+| `grep_search` | Search for text across files |
+| `shell_tool` | Execute shell commands (60s timeout) |
 
-**Coder**
-- Manipulação de arquivos (read_file, write_file)
-- Execução de comandos shell (shell_tool)
-- Busca por arquivos e conteúdo (glob_search, grep_search)
-- Planejamento de tarefas (write_todos)
+### 🌐 Web Research & Scraping (via [Scrapling](https://github.com/D4Vinci/Scrapling) MCP)
+| Tool | Protection Level | Description |
+|---|---|---|
+| `search_web` | — | Primary web search via Tavily (use first to discover URLs) |
+| `get` | Low / Mid | Fast HTTP GET for standard websites |
+| `bulk_get` | Low / Mid | Batch HTTP GET for multiple URLs |
+| `fetch` | Mid / High | Playwright-based browser fetch (JS rendering) |
+| `bulk_fetch` | Mid / High | Batch Playwright fetch |
+| `stealthy_fetch` | High (Cloudflare) | Stealth browser fetch for bot-protected sites |
+| `bulk_stealthy_fetch` | High (Cloudflare) | Batch stealth fetch |
 
-Veja os prompts de sistema em `src/agents/prompts/` para detalhes completos das ferramentas de cada agente.
+> **Scraping tool selection guide:** Start with `get`. If content is missing or blocked, escalate to `fetch`, then `stealthy_fetch`.
+
+---
 
 ## 🚀 Quick Start
 
-### Desenvolvimento Local
+### Prerequisites
+
+- Python 3.11+
+- Anaconda or a Python virtual environment
+- A running **Scrapling MCP server** on `http://localhost:8000/mcp`
+- A running **MLflow server** (optional, for tracing)
+
+### Setup
 
 ```bash
-# 1. Criar ambiente virtual
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
+# 1. Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate        # Linux / macOS
+venv\Scripts\activate           # Windows
 
-# 2. Instalar dependências
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Instalar Playwright browsers
-playwright install chromium
-
-# 4. Configurar environment
+# 3. Configure environment variables
 cp .env.example .env
-# Edite .env e adicione suas API keys
+# Edit .env and add your API keys
 
-# 5. Execute o MLFlow
-
+# 4. (Optional) Start MLflow for tracing
 mlflow server --port 1234
 
-# 5. Executar diretamente (via CLI App)
-cd src/agents
+# 5. Start the Scrapling MCP server
+# Follow the Scrapling MCP setup instructions
+
+# 6. Run the CLI
+cd openagent-core/src/agents
 python cli.py
-## 📁 Estrutura do Projeto
-
-```
-openagent-core/
-├── src/
-│   └── agents/
-│       ├── openagent.py       # Orquestrador principal
-│       ├── researcher.py      # Agente de pesquisa web
-│       ├── coder.py          # Agente de código
-│       ├── tools/            # Ferramentas customizadas
-│       ├── middleware/       # Middleware customizado
-│       ├── prompts/          # System prompts
-│       └── utils/            # Utilitários
-├── requirements.txt         # Python dependencies
-├── langgraph.json          # LangGraph Server configuration
-└── .env                    # Environment variables (gitignored)
 ```
 
-## 🔧 Configuração
+### CLI Usage
+
+```bash
+python cli.py
+```
+
+**Slash commands inside the CLI:**
+
+| Command | Description |
+|---|---|
+| `/help` | Show available commands |
+| `/exit` `/quit` | Exit the CLI |
+| `/clear` | Start a fresh conversation thread |
+| `/agent <name>` | Switch to another agent |
+| `/agents` | List all available agents |
+| `/history` | Show message count in current thread |
+
+---
+
+## 📁 Project Structure
+
+```
+openagent/
+├── openagent-core/
+│   └── src/
+│       └── agents/
+│           ├── openagent.py          # Main agent
+│           ├── cli.py               # Interactive terminal CLI
+│           ├── models.py            # Centralized LLM configuration
+│           ├── prompts/             # System prompts (versioned)
+│           │   └── openagent_sys_prompt_v0.0.2.md
+│           ├── tools/               # Custom LangChain tools
+│           │   ├── scrapling_tools.py   # Scrapling MCP client
+│           │   ├── search_web.py        # Tavily web search
+│           │   ├── read_file.py
+│           │   ├── write_file.py
+│           │   ├── run_shell.py
+│           │   ├── write_todos.py
+│           │   └── playwright_tools/    # Playwright browser tools
+│           ├── middleware/          # LangChain middleware (TodoList, Summarization)
+│           └── utils/               # Shared utilities (summarization node, logging)
+├── requirements.txt
+└── .env                             # Environment variables (gitignored)
+```
+
+---
+
+## 🔧 Configuration
 
 ### Environment Variables
 
-Crie um arquivo `.env` na raiz do projeto:
+Create a `.env` file at the project root:
 
 ```bash
-# HuggingFace Token (obrigatório)
-HF_TOKEN=hf_...
+# Azure OpenAI (required)
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com/
 
-# Groq API (opcional - para modelos alternativos)
-GROQ_API_KEY=gsk_...
-
-# LangFuse (opcional - para tracing)
+# LangFuse (optional — for conversation tracing)
 LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_SECRET_KEY=sk-lf-...
 LANGFUSE_HOST=https://cloud.langfuse.com
 
-# Browser (opcional - default: false)
-HEADLESS=false
+# Tavily (required for search_web)
+TAVILY_API_KEY=tvly-...
+
+# Browser visibility (optional, default: true)
+HEADLESS=true
 ```
 
-### Obter API Keys
+---
 
-- **HuggingFace**: https://huggingface.co/settings/tokens
-- **Groq**: https://console.groq.com/keys
-- **LangFuse**: https://cloud.langfuse.com
-
-## 🎯 Uso
-
-### CLI Interativo (Local)
-
-```bash
-# OpenAgent (orquestrador)
-python src/agents/openagent.py
-
-# CLI de demonstração (modo conversacional)
-python src/agents/cli.py
-
-# Researcher (pesquisa web)
-python src/agents/researcher.py
-
-# Coder (desenvolvimento)
-python src/agents/coder.py
-```
-
-#### Como usar o CLI (cli.py)
-
-O arquivo `cli.py` permite interagir com o OpenAgent em modo conversacional no terminal:
-
-```bash
-python src/agents/cli.py
-```
-
-Você pode digitar perguntas ou comandos, e o agente responderá de forma interativa, mostrando o raciocínio e as etapas executadas.
-
-Comandos úteis:
-- `exit`, `quit`, `bye`: encerra a sessão
-- Mensagens livres: descreva a tarefa ou pergunta normalmente
-
-O CLI é ideal para testes rápidos, demonstrações e debugging do fluxo multi-agente.
-
-### LangGraph Server
-
-```bash
-# 1. Iniciar servidor
-langgraph dev
-
-# 2. Acessar interface
-# LangGraph Studio abre automaticamente
-
-# 3. API REST
-curl http://localhost:8123/graphs
-```
-
-### LangSmith Studio
-
-Importe o grafo `openagent` no LangSmith Studio para debugging visual.
-
-## 🧪 Testing
-
-### Testar Researcher
-
-```bash
-python src/agents/researcher.py
-```
-
-### Testar Coder
-
-```bash
-python src/agents/coder.py
-```
-
-
-## 📊 Arquitetura
+## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│          OpenAgent (Orquestrador)       │
-│   - create_deep_agent                   │
-│   - FilesystemBackend                   │
-│   - ShellToolMiddleware                 │
-└──────────────┬──────────────────────────┘
-               │
-       ┌───────┴────────┐
-       │                │
-┌──────▼──────┐  ┌─────▼──────┐
-│  Researcher │  │   Coder    │
-│  (SubAgent) │  │ (SubAgent) │
-├─────────────┤  ├────────────┤
-│ • Browser   │  │ • File ops │
-│ • Web scraping│ │ • Shell    │
-│ • Research  │  │ • Coding   │
-└─────────────┘  └────────────┘
+┌────────────────────────────────────────────────────┐
+│                   OpenAgent v0.0.2                 │
+│            (General-Purpose Single Agent)          │
+│                                                    │
+│  Tools:                                            │
+│  ┌──────────────┐  ┌────────────────────────────┐  │
+│  │  File & Shell │  │  Web (Scrapling MCP)       │  │
+│  │  write_todos  │  │  search_web                │  │
+│  │  read_file    │  │  get / bulk_get            │  │
+│  │  write_file   │  │  fetch / bulk_fetch        │  │
+│  │  shell_tool   │  │  stealthy_fetch / bulk     │  │
+│  │  glob/grep    │  └────────────────────────────┘  │
+│  └──────────────┘                                  │
+│                                                    │
+│  Infrastructure: LangGraph + MemorySaver           │
+│  Summarization: Auto-summarizes long conversations │
+└────────────────────────────────────────────────────┘
+         │
+   ┌─────┴──────┐
+   │  CLI (cli.py)│  ← Interactive terminal interface
+   └────────────┘
 ```
 
-## 🔒 Segurança
+The agent graph flow:
 
-⚠️ **Importante**:
-- ShellToolMiddleware executa comandos shell
-- Playwright acessa a web
-- Nunca execute código não confiável
+```
+START → [should_summarize?] → agent → [tools_condition] → tools → [should_summarize?] → agent ...
+                    ↓
+                summarize → agent
+```
 
-Para produção, use sandboxing apropriado.
+---
 
-## 📚 Documentação
+## 🔒 Security
 
-- [LangGraph Docs](https://langchain-ai.github.io/langgraph/)
-- [LangGraph Server](https://langchain-ai.github.io/langgraph/cloud/)
-- [DeepAgents Docs](https://github.com/langchain-ai/deepagents)
-- [Playwright Python](https://playwright.dev/python/)
+⚠️ **Important:**
+- `shell_tool` executes arbitrary shell commands
+- Scraping tools access the public internet
+- The working directory is restricted to `~/Documents/openagent_tests/`
+- Never run untrusted user input without proper sandboxing in production
+
+---
 
 ## 🐛 Troubleshooting
 
-### "Module not found"
+**`Module not found` errors:**
 ```bash
-# Verifique PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+# Add src to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/openagent-core/src"   # Linux/macOS
+set PYTHONPATH=%PYTHONPATH%;openagent-core\src               # Windows
 ```
 
-### "Chromium not found"
-```bash
-playwright install chromium
+**Scrapling tools not loading:**
+```
+Ensure the Scrapling MCP server is running at http://localhost:8000/mcp
 ```
 
-### "API Key not found"
-```bash
-# Verifique .env
-cat .env | grep GROQ_API_KEY
+**Token counter error (`NoneType has no attribute 'startswith'`):**
 ```
+Set model_name explicitly in models.py or ensure your Azure deployment name
+is a recognized OpenAI model name for tiktoken. The summarization node
+has a fallback estimator for custom deployments.
+```
+
+**MLflow connection error:**
+```bash
+mlflow server --port 1234
+```
+
+---
+
+## 📚 References
+
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [Scrapling](https://github.com/D4Vinci/Scrapling)
+- [Tavily Search API](https://docs.tavily.com)
+- [LangFuse Tracing](https://cloud.langfuse.com)
+
+---
 
 ## 📝 License
 
 MIT
-
-## 🤝 Contributing
-
-Pull requests são bem-vindos!

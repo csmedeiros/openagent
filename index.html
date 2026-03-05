@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenAgent Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-main: #0a0a0a;
+      --bg-sidebar: #111111;
+      --bg-card: #1a1a1a;
+      --bg-input: #1f1f1f;
+      --bg-hover: #252525;
+      --border: #2a2a2a;
+      --accent: #5b6af0;
+      --accent-light: #7c8af5;
+      --text-primary: #f0f0f0;
+      --text-sec: #888;
+      --text-muted: #555;
+      --radius-card: 12px;
+      --radius-pill: 50px;
+      --sidebar-w: 260px;
+      --transition: 0.18s ease;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    /* ── Layout ── */
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 20px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-brand {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+
+    .search-box svg {
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .search-box input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 13px;
+      width: 100%;
+    }
+
+    .search-box input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Sidebar body scrollable */
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 4px 4px 8px;
+    }
+
+    .folder-item,
+    .chat-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background var(--transition);
+      margin-bottom: 2px;
+    }
+
+    .folder-item:hover,
+    .chat-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .chat-item.active {
+      background: #1e2245;
+    }
+
+    .folder-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .folder-icon.blue {
+      background: #1e3a8a22;
+      color: #60a5fa;
+    }
+
+    .folder-icon.purple {
+      background: #4c1d9522;
+      color: #a78bfa;
+    }
+
+    .item-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-sub {
+      font-size: 11px;
+      color: var(--text-sec);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    .sidebar-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 16px;
+      border: 1.5px solid var(--accent);
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--accent-light);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .new-chat-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Main Area ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .topbar-btn {
+      background: none;
+      border: none;
+      color: var(--text-sec);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* ── Welcome screen ── */
+    .welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px 0;
+      gap: 28px;
+    }
+
+    .logo-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo-img {
+      height: 56px;
+      object-fit: contain;
+    }
+
+    /* Placeholder shown when logo file not provided */
+    .logo-placeholder {
+      width: 56px;
+      height: 56px;
+      background: #fff;
+      border-radius: 10px;
+    }
+
+    .welcome-heading {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-align: center;
+    }
+
+    /* Feature cards */
+    .feature-cards {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 720px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 18px 20px;
+      width: 210px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .card:hover {
+      border-color: #3a3a3a;
+      background: var(--bg-hover);
+      transform: translateY(-2px);
+    }
+
+    .card-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+
+    .card-icon.blue {
+      background: #1e3a8a33;
+    }
+
+    .card-icon.purple {
+      background: #4c1d9533;
+    }
+
+    .card-icon.teal {
+      background: #0f766e33;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-sec);
+      line-height: 1.5;
+    }
+
+    /* ── Chat messages ── */
+    .messages-area {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 10%;
+      flex-direction: column;
+      gap: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .messages-area.visible {
+      display: flex;
+    }
+
+    .msg {
+      display: flex;
+      gap: 12px;
+      max-width: 780px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .msg.user {
+      flex-direction: row-reverse;
+    }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .msg.user .msg-avatar {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .msg.agent .msg-avatar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: calc(100% - 48px);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.user .msg-bubble {
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.agent .msg-bubble {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    /* Tool call indicator */
+    .tool-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-sec);
+      padding: 6px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-width: 340px;
+      margin: 0 auto;
+    }
+
+    .tool-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #f59e0b;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.35;
+      }
+    }
+
+    /* Typing cursor */
+    .typing-cursor::after {
+      content: '▋';
+      animation: blink 0.7s step-end infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+
+    /* ── Input Area ── */
+    .input-area {
+      padding: 16px 10%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      background: linear-gradient(to top, var(--bg-main) 70%, transparent);
+    }
+
+    /* File attachments preview */
+    .attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    .attach-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-sec);
+    }
+
+    .attach-chip button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .attach-chip button:hover {
+      color: var(--text-primary);
+    }
+
+    .input-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      padding: 10px 10px 10px 20px;
+      width: 100%;
+      max-width: 720px;
+      transition: border-color var(--transition);
+    }
+
+    .input-box:focus-within {
+      border-color: var(--accent);
+    }
+
+    .input-box textarea {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      max-height: 140px;
+      line-height: 1.5;
+      scrollbar-width: none;
+    }
+
+    .input-box textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .input-box textarea::-webkit-scrollbar {
+      display: none;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all var(--transition);
+    }
+
+    .mic-btn {
+      background: none;
+      color: var(--text-sec);
+    }
+
+    .mic-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .send-btn {
+      background: var(--text-primary);
+      color: var(--bg-main);
+    }
+
+    .send-btn:hover {
+      background: var(--accent-light);
+      color: #fff;
+    }
+
+    .send-btn:disabled {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .input-footer {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ── Settings overlay ─────────────────────────────────── */
+    .settings-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      z-index: 200;
+    }
+
+    .settings-backdrop.open {
+      display: block;
+    }
+
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 340px;
+      background: #141414;
+      border-left: 1px solid var(--border);
+      z-index: 201;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform .25s ease;
+      overflow-y: auto;
+    }
+
+    .settings-backdrop.open .settings-panel {
+      transform: translateX(0);
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .settings-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .settings-close {
+      background: none;
+      border: none;
+      color: var(--text-sec);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 6px;
+    }
+
+    .settings-close:hover {
+      color: var(--text-primary);
+    }
+
+    .settings-body {
+      flex: 1;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .settings-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .settings-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .settings-field label {
+      font-size: 12px;
+      color: var(--text-sec);
+      font-weight: 500;
+    }
+
+    .settings-field input,
+    .settings-field select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+      transition: border-color var(--transition);
+    }
+
+    .settings-field input:focus,
+    .settings-field select:focus {
+      border-color: var(--accent);
+    }
+
+    .settings-field input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .settings-field select option {
+      background: #1c1c1c;
+    }
+
+    .settings-footer {
+      padding: 16px 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+    }
+
+    .settings-save-btn {
+      flex: 1;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--transition);
+    }
+
+    .settings-save-btn:hover {
+      opacity: .85;
+    }
+
+    .settings-save-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .settings-status {
+      font-size: 12px;
+      color: #4ade80;
+      align-self: center;
+      display: none;
+    }
+
+    /* Gear button in topbar */
+    .topbar-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-sec);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+    }
+
+    .topbar-btn:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">OpenAgent</div>
+        <div class="search-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input type="text" placeholder="Buscar conversas..." id="search-input" />
+        </div>
+      </div>
+
+      <div class="sidebar-body">
+        <!-- Folders -->
+        <div class="sidebar-section-label">Pastas</div>
+        <div class="folder-item">
+          <div class="folder-icon blue">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" />
+            </svg>
+          </div>
+          <div class="item-text">
+            <div class="item-title">Trabalho</div>
+          </div>
+        </div>
+        <div class="folder-item">
+          <div class="folder-icon purple">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" />
+            </svg>
+          </div>
+          <div class="item-text">
+            <div class="item-title">Pessoal</div>
+          </div>
+        </div>
+
+        <div class="sidebar-sep"></div>
+
+        <!-- Recent chats -->
+        <div class="sidebar-section-label">Conversas recentes</div>
+        <div id="chat-history"></div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="new-chat-btn" id="new-chat-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nova conversa
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main class="main">
+
+      <!-- Topbar -->
+      <div class="topbar">
+        <button class="topbar-btn" title="Exportar conversa">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <polyline points="15 3 21 3 21 9" />
+            <line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        </button>
+
+        <!-- Gear / Settings button -->
+        <button class="topbar-btn" title="Configurações" id="settings-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Settings overlay -->
+      <div class="settings-backdrop" id="settings-backdrop">
+        <div class="settings-panel" id="settings-panel">
+          <div class="settings-header">
+            <span class="settings-title">⚙️ Configurações</span>
+            <button class="settings-close" id="settings-close">&times;</button>
+          </div>
+
+          <div class="settings-body">
+
+            <div>
+              <div class="settings-section-label">Modelo LLM</div>
+              <div class="settings-field">
+                <label for="cfg-provider">Provedor (MODEL_PROVIDER)</label>
+                <select id="cfg-provider">
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="groq">Groq</option>
+                  <option value="azure_openai">Azure OpenAI</option>
+                  <option value="huggingface_endpoint">HuggingFace Endpoint</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="google_vertexai">Google Vertex AI</option>
+                </select>
+              </div>
+              <div class="settings-field" style="margin-top:12px">
+                <label for="cfg-model-name">Nome do modelo (MODEL_NAME)</label>
+                <input type="text" id="cfg-model-name" placeholder="ex: gpt-4o, claude-opus-4-6" />
+              </div>
+              <div class="settings-field" style="margin-top:12px">
+                <label for="cfg-api-key">API Key (MODEL_API_KEY)</label>
+                <input type="password" id="cfg-api-key" placeholder="sk-..." autocomplete="off" />
+              </div>
+              <div class="settings-field" style="margin-top:12px">
+                <label for="cfg-base-url">Base URL opcional (MODEL_BASE_URL)</label>
+                <input type="text" id="cfg-base-url" placeholder="https://... (deixe vazio para usar o padrão)" />
+              </div>
+            </div>
+
+            <div>
+              <div class="settings-section-label">Workspace</div>
+              <div class="settings-field">
+                <label for="cfg-workspace">Diretório de trabalho (WORKSPACE_ROOT)</label>
+                <input type="text" id="cfg-workspace" placeholder="C:\Users\...\openagent-tests" />
+              </div>
+            </div>
+
+          </div>
+
+          <div class="settings-footer">
+            <button class="settings-save-btn" id="settings-save">Salvar e aplicar</button>
+            <span class="settings-status" id="settings-status">✓ Salvo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Welcome screen (shown when no messages) -->
+      <div class="welcome" id="welcome-screen">
+        <div class="logo-area">
+          <!-- Logo: será substituída pelo arquivo que você fornecer -->
+          <img id="logo-img" class="logo-img" src="logo.png" alt="Logo"
+            onerror="this.style.display='none'; document.getElementById('logo-placeholder').style.display='block';" />
+          <div id="logo-placeholder" class="logo-placeholder" style="display:none;"></div>
+          <h1 class="welcome-heading">Como posso te ajudar hoje?</h1>
+        </div>
+
+        <div class="feature-cards">
+          <div class="card" onclick="useSuggestion('Quais são as suas principais capacidades?')">
+            <div class="card-icon blue">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+            </div>
+            <div class="card-title">Templates de Prompt</div>
+            <div class="card-desc">Acesse uma biblioteca de prompts curados para agilizar seu trabalho.</div>
+          </div>
+
+          <div class="card" onclick="useSuggestion('Me ajude a analisar dados e criar um relatório.')">
+            <div class="card-icon purple">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M9 21V9" />
+              </svg>
+            </div>
+            <div class="card-title">Análise de Dados</div>
+            <div class="card-desc">Processe tabelas, gere insights e crie relatórios automaticamente.</div>
+          </div>
+
+          <div class="card" onclick="useSuggestion('Pesquise na web sobre inteligência artificial em 2025.')">
+            <div class="card-icon teal">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            </div>
+            <div class="card-title">Pesquisa Web</div>
+            <div class="card-desc">Busca em tempo real para trazer as informações mais atualizadas.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages area (hidden initially) -->
+      <div class="messages-area" id="messages-area"></div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <!-- Attachments preview -->
+        <div class="attachments" id="attachments"></div>
+
+        <div class="input-box">
+          <!-- Hidden file input -->
+          <input type="file" id="file-input" multiple style="display:none" />
+
+          <!-- Attach button -->
+          <button class="icon-btn mic-btn" title="Anexar arquivo" id="attach-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+
+          <textarea id="msg-input" rows="1" placeholder="Digite sua mensagem aqui..."></textarea>
+          <button class="icon-btn mic-btn" title="Microfone" id="mic-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </button>
+          <button class="icon-btn send-btn" id="send-btn" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+        <div class="input-footer">OpenAgent pode cometer erros. Verifique informações importantes.</div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ── Config ─────────────────────────────────────────────────────────
+    const API_BASE = 'http://localhost:8080';
+
+    // ── State ──────────────────────────────────────────────────────────
+    let threadId = generateId();
+    let isStreaming = false;
+    let chatHistory = JSON.parse(localStorage.getItem('chat-history') || '[]');
+    let pendingFiles = []; // [{filename, content_b64}]
+
+    function generateId() {
+      return 'thread-' + Math.random().toString(36).slice(2, 9);
+    }
+
+    // ── DOM refs ───────────────────────────────────────────────────────
+    const msgInput = document.getElementById('msg-input');
+    const sendBtn = document.getElementById('send-btn');
+    const messagesEl = document.getElementById('messages-area');
+    const welcomeEl = document.getElementById('welcome-screen');
+    const historyEl = document.getElementById('chat-history');
+    const newChatBtn = document.getElementById('new-chat-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const fileInput = document.getElementById('file-input');
+    const attachments = document.getElementById('attachments');
+
+    // ── File attachment handling ───────────────────────────────────────
+    attachBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async () => {
+      const files = Array.from(fileInput.files);
+      for (const file of files) {
+        const b64 = await readFileAsBase64(file);
+        pendingFiles.push({ filename: file.name, content_b64: b64 });
+      }
+      fileInput.value = ''; // reset so same file can be added again
+      renderAttachments();
+      // Enable send if there are files even without text
+      sendBtn.disabled = false;
+    });
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderAttachments() {
+      attachments.innerHTML = '';
+      pendingFiles.forEach((f, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'attach-chip';
+
+        const icon = document.createElement('span');
+        icon.textContent = '📎';
+
+        const name = document.createElement('span');
+        name.textContent = f.filename;
+
+        const rm = document.createElement('button');
+        rm.innerHTML = '&times;';
+        rm.title = 'Remover';
+        rm.addEventListener('click', () => {
+          pendingFiles.splice(i, 1);
+          renderAttachments();
+          if (!pendingFiles.length && !msgInput.value.trim()) sendBtn.disabled = true;
+        });
+
+        chip.appendChild(icon);
+        chip.appendChild(name);
+        chip.appendChild(rm);
+        attachments.appendChild(chip);
+      });
+    }
+
+    // ── Auto-resize textarea ───────────────────────────────────────────
+    msgInput.addEventListener('input', () => {
+      msgInput.style.height = 'auto';
+      msgInput.style.height = Math.min(msgInput.scrollHeight, 140) + 'px';
+      sendBtn.disabled = msgInput.value.trim() === '';
+    });
+
+    msgInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!sendBtn.disabled && !isStreaming) sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', () => {
+      if (!isStreaming) sendMessage();
+    });
+
+    newChatBtn.addEventListener('click', startNewChat);
+
+    // ── Render sidebar history ─────────────────────────────────────────
+    function renderHistory() {
+      historyEl.innerHTML = '';
+      chatHistory.slice().reverse().forEach((c) => {
+        const el = document.createElement('div');
+        el.className = 'chat-item' + (c.id === threadId ? ' active' : '');
+        el.innerHTML = `
+        <div class="item-text">
+          <div class="item-title">${escHtml(c.title)}</div>
+          <div class="item-sub">${escHtml(c.preview)}</div>
+        </div>`;
+        el.addEventListener('click', () => loadChat(c.id));
+        historyEl.appendChild(el);
+      });
+    }
+
+    function saveChat(title, preview) {
+      const existing = chatHistory.find(c => c.id === threadId);
+      if (existing) {
+        existing.title = title;
+        existing.preview = preview;
+      } else {
+        chatHistory.push({ id: threadId, title, preview, messages: [] });
+      }
+      localStorage.setItem('chat-history', JSON.stringify(chatHistory));
+      renderHistory();
+    }
+
+    function loadChat(id) {
+      threadId = id;
+      const chat = chatHistory.find(c => c.id === id);
+      if (!chat) return;
+
+      // Re-render messages
+      messagesEl.innerHTML = '';
+      (chat.messages || []).forEach(m => appendMessage(m.role, m.text, false));
+      showMessages();
+      renderHistory();
+    }
+
+    function startNewChat() {
+      threadId = generateId();
+      messagesEl.innerHTML = '';
+      showWelcome();
+      renderHistory();
+    }
+
+    // ── Welcome / messages toggle ──────────────────────────────────────
+    function showMessages() {
+      welcomeEl.style.display = 'none';
+      messagesEl.classList.add('visible');
+    }
+
+    function showWelcome() {
+      welcomeEl.style.display = 'flex';
+      messagesEl.classList.remove('visible');
+    }
+
+    // ── Message rendering ──────────────────────────────────────────────
+    function appendMessage(role, text, save = true) {
+      showMessages();
+
+      const wrapper = document.createElement('div');
+      wrapper.className = `msg ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'msg-avatar';
+      avatar.textContent = role === 'user' ? 'U' : 'A';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = text;
+
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(bubble);
+      messagesEl.appendChild(wrapper);
+      scrollToBottom();
+
+      if (save) {
+        const chat = chatHistory.find(c => c.id === threadId);
+        if (chat) {
+          chat.messages = chat.messages || [];
+          chat.messages.push({ role, text });
+          localStorage.setItem('chat-history', JSON.stringify(chatHistory));
+        }
+      }
+
+      return bubble;
+    }
+
+    function appendToolIndicator(toolName) {
+      const el = document.createElement('div');
+      el.className = 'tool-indicator';
+      el.innerHTML = `<div class="tool-dot"></div><span>Usando ferramenta: <strong>${escHtml(toolName)}</strong></span>`;
+      messagesEl.appendChild(el);
+      scrollToBottom();
+      return el;
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // ── Send message with SSE streaming ───────────────────────────────
+    async function sendMessage() {
+      const text = msgInput.value.trim();
+      if ((!text && !pendingFiles.length) || isStreaming) return;
+
+      // Lock input
+      msgInput.value = '';
+      msgInput.style.height = 'auto';
+      sendBtn.disabled = true;
+      isStreaming = true;
+
+      // Snapshot and clear pending files
+      const filesToSend = [...pendingFiles];
+      pendingFiles = [];
+      renderAttachments();
+
+      // Show user bubble
+      const displayText = text + (filesToSend.length
+        ? '\n📎 ' + filesToSend.map(f => f.filename).join(', ')
+        : '');
+      appendMessage('user', displayText);
+
+      // Persist chat entry
+      const shortTitle = (text || filesToSend[0]?.filename || 'Arquivo').slice(0, 40);
+      saveChat(shortTitle, displayText.slice(0, 60));
+
+      // ── Streaming state ──────────────────────────────────────────────
+      let currentBubble = null;
+      let currentText = '';
+      let toolEl = null;
+      const allAgentTexts = [];
+      let savedToHistory = false;
+
+      // Create a fresh agent bubble. Seals any existing one first.
+      function startNewBubble() {
+        if (currentBubble) {
+          currentBubble.classList.remove('typing-cursor');
+          if (currentText.trim()) allAgentTexts.push(currentText);
+          currentBubble = null;
+          currentText = '';
+        }
+        currentBubble = appendMessage('agent', '', false);
+        currentBubble.classList.add('typing-cursor');
+      }
+
+      // Called when agent turn ends (is_last_message=true) or stream closes.
+      function endTurn() {
+        if (currentBubble) {
+          currentBubble.classList.remove('typing-cursor');
+          if (currentText.trim()) allAgentTexts.push(currentText);
+          currentBubble = null;
+          currentText = '';
+        }
+        if (toolEl) { toolEl.remove(); toolEl = null; }
+
+        if (!savedToHistory) {
+          savedToHistory = true;
+          const chat = chatHistory.find(c => c.id === threadId);
+          if (chat) {
+            chat.messages = chat.messages || [];
+            allAgentTexts.forEach(t => chat.messages.push({ role: 'agent', text: t }));
+            chat.preview = (allAgentTexts[allAgentTexts.length - 1] || '').slice(0, 60);
+            localStorage.setItem('chat-history', JSON.stringify(chatHistory));
+          }
+        }
+
+        isStreaming = false;
+        sendBtn.disabled = msgInput.value.trim() === '' && pendingFiles.length === 0;
+        renderHistory();
+      }
+
+      // Pre-create first bubble immediately so there's always somewhere to write
+      startNewBubble();
+
+      // Build files payload [{filename: b64}]
+      const filesPayload = filesToSend.map(f => ({ [f.filename]: f.content_b64 }));
+
+      try {
+        const response = await fetch(`${API_BASE}/chat/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text || `Arquivo(s) anexado(s): ${filesToSend.map(f => f.filename).join(', ')}`,
+            thread_id: threadId,
+            files: filesPayload.length ? filesPayload : undefined,
+          }),
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
+            let evt;
+            try { evt = JSON.parse(raw); } catch { continue; }
+
+            // New LLM response starts — only create new bubble if current has content
+            if (evt.type === 'message_start') {
+              if (currentText.trim()) startNewBubble();
+
+              // LLM response done — check if we should unlock input
+            } else if (evt.type === 'message_end') {
+              if (evt.is_last_message) {
+                endTurn();
+              } else if (currentText.trim()) {
+                // Seal intermediate bubble; next tokens will create a fresh one
+                currentBubble && currentBubble.classList.remove('typing-cursor');
+                allAgentTexts.push(currentText);
+                currentBubble = null;
+                currentText = '';
+              }
+
+              // Streaming token — always has a bubble (create if needed)
+            } else if (evt.type === 'token') {
+              if (toolEl) { toolEl.remove(); toolEl = null; }
+              if (!currentBubble) startNewBubble();
+              currentText += evt.content;
+              currentBubble.textContent = currentText;
+              scrollToBottom();
+
+              // Files saved confirmation
+            } else if (evt.type === 'files_saved') {
+              if (toolEl) toolEl.remove();
+              toolEl = appendToolIndicator(`Arquivos salvos: ${evt.paths.map(p => p.split('\\').pop()).join(', ')}`);
+
+              // Tool running indicator
+            } else if (evt.type === 'tool_start') {
+              if (!toolEl) toolEl = appendToolIndicator(evt.tool);
+              else toolEl.querySelector('strong').textContent = evt.tool;
+
+              // Stream is fully done
+            } else if (evt.type === 'done') {
+              endTurn();
+
+              // Error from server
+            } else if (evt.type === 'error') {
+              if (!currentBubble) startNewBubble();
+              const errText = `❌ Erro: ${evt.detail}`;
+              currentBubble.textContent = errText;
+              currentText = errText;
+              endTurn();
+            }
+          }
+        }
+
+      } catch (err) {
+        // Network / fetch error
+        const errText = `❌ Erro ao conectar com a API: ${err.message}`;
+        if (!currentBubble) startNewBubble();
+        currentBubble.textContent = errText;
+        currentText = errText;
+        endTurn();
+      }
+    }
+
+    // ── Settings panel ────────────────────────────────────────────────
+    const settingsBackdrop = document.getElementById('settings-backdrop');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsClose = document.getElementById('settings-close');
+    const settingsSave = document.getElementById('settings-save');
+    const settingsStatus = document.getElementById('settings-status');
+
+    const CFG_FIELDS = {
+      'cfg-provider': 'MODEL_PROVIDER',
+      'cfg-model-name': 'MODEL_NAME',
+      'cfg-api-key': 'MODEL_API_KEY',
+      'cfg-base-url': 'MODEL_BASE_URL',
+      'cfg-workspace': 'WORKSPACE_ROOT',
+    };
+
+    function openSettings() {
+      settingsBackdrop.classList.add('open');
+      loadSettingsUI();
+    }
+
+    function closeSettings() {
+      settingsBackdrop.classList.remove('open');
+    }
+
+    settingsBtn.addEventListener('click', openSettings);
+    settingsClose.addEventListener('click', closeSettings);
+    settingsBackdrop.addEventListener('click', e => {
+      if (e.target === settingsBackdrop) closeSettings();
+    });
+
+    // Load from localStorage into the form fields
+    function loadSettingsUI() {
+      const saved = JSON.parse(localStorage.getItem('openagent-settings') || '{}');
+      for (const [elId, key] of Object.entries(CFG_FIELDS)) {
+        const el = document.getElementById(elId);
+        if (!el) continue;
+        if (saved[key] !== undefined) el.value = saved[key];
+      }
+    }
+
+    // Save to localStorage and POST to API
+    settingsSave.addEventListener('click', async () => {
+      settingsSave.disabled = true;
+
+      const payload = {};
+      const local = JSON.parse(localStorage.getItem('openagent-settings') || '{}');
+
+      for (const [elId, key] of Object.entries(CFG_FIELDS)) {
+        const el = document.getElementById(elId);
+        if (!el) continue;
+        const val = el.value.trim();
+        if (val) {
+          payload[key] = val;
+          local[key] = val;
+        }
+      }
+
+      localStorage.setItem('openagent-settings', JSON.stringify(local));
+
+      try {
+        const res = await fetch(`${API_BASE}/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        console.warn('Settings POST failed:', err);
+      }
+
+      settingsStatus.style.display = 'inline';
+      setTimeout(() => { settingsStatus.style.display = 'none'; }, 2500);
+      settingsSave.disabled = false;
+    });
+
+    // On startup: push stored settings to the server silently
+    (async () => {
+      const saved = JSON.parse(localStorage.getItem('openagent-settings') || '{}');
+      if (Object.keys(saved).length > 0) {
+        try {
+          await fetch(`${API_BASE}/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(saved),
+          });
+        } catch { /* API not ready yet — settings will be applied on next page load */ }
+      }
+    })();
+
+    // ── Feature card suggestion ────────────────────────────────────────
+    function useSuggestion(text) {
+      msgInput.value = text;
+      msgInput.dispatchEvent(new Event('input'));
+      sendMessage();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    function escHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────
+    renderHistory();
+  </script>
+</body>
+
+</html>
+
+
+if ((!text && !pendingFiles.length) || isStreaming) return;
+
+// Reset input
+msgInput.value = '';
+msgInput.style.height = 'auto';
+sendBtn.disabled = true;
+isStreaming = true;
+
+// Snapshot and clear pending files
+const filesToSend = [...pendingFiles];
+pendingFiles = [];
+renderAttachments();
+
+// Show user bubble (with file names if any)
+const displayText = text + (filesToSend.length
+? '\n📎 ' + filesToSend.map(f => f.filename).join(', ')
+: '');
+appendMessage('user', displayText);
+
+// Persist chat (create entry if needed)
+const shortTitle = (text || filesToSend[0]?.filename || 'Arquivo').slice(0, 40);
+saveChat(shortTitle, displayText.slice(0, 60));
+
+// Per-message streaming state
+// Each agent LLM response gets its own bubble via message_start
+let currentBubble = null; // active bubble element
+let currentText = ''; // accumulated text for current bubble
+let toolEl = null; // active tool indicator
+const allAgentTexts = []; // collect all bubbles for history
+
+function startNewBubble() {
+// Finalize previous bubble if any
+if (currentBubble) {
+currentBubble.classList.remove('typing-cursor');
+if (currentText) allAgentTexts.push(currentText);
+}
+currentText = '';
+currentBubble = appendMessage('agent', '', false);
+currentBubble.classList.add('typing-cursor');
+}
+
+function finalizeBubble(isLast) {
+if (currentBubble) {
+currentBubble.classList.remove('typing-cursor');
+if (currentText) allAgentTexts.push(currentText);
+currentBubble = null;
+currentText = '';
+}
+if (toolEl) { toolEl.remove(); toolEl = null; }
+
+if (isLast) {
+// Save all collected agent responses to history
+const chat = chatHistory.find(c => c.id === threadId);
+if (chat) {
+chat.messages = chat.messages || [];
+allAgentTexts.forEach(t => chat.messages.push({ role: 'agent', text: t }));
+chat.preview = allAgentTexts[allAgentTexts.length - 1]?.slice(0, 60) || '';
+localStorage.setItem('chat-history', JSON.stringify(chatHistory));
+}
+
+isStreaming = false;
+sendBtn.disabled = msgInput.value.trim() === '' && pendingFiles.length === 0;
+renderHistory();
+}
+}
+
+// Build files payload as list of single-key dicts [{filename: b64}]
+const filesPayload = filesToSend.map(f => ({ [f.filename]: f.content_b64 }));
+
+try {
+const response = await fetch(`${API_BASE}/chat/stream`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+message: text || `Arquivo(s) anexado(s): ${filesToSend.map(f => f.filename).join(', ')}`,
+thread_id: threadId,
+files: filesPayload.length ? filesPayload : undefined,
+}),
+});
+
+if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let buffer = '';
+
+while (true) {
+const { done, value } = await reader.read();
+if (done) break;
+
+buffer += decoder.decode(value, { stream: true });
+const lines = buffer.split('\n');
+buffer = lines.pop(); // keep incomplete line
+
+for (const line of lines) {
+if (!line.startsWith('data: ')) continue;
+const raw = line.slice(6).trim();
+if (!raw) continue;
+
+let evt;
+try { evt = JSON.parse(raw); } catch { continue; }
+
+// ── message_start: new agent LLM response begins ──────────
+if (evt.type === 'message_start') {
+if (toolEl) { toolEl.remove(); toolEl = null; }
+startNewBubble();
+
+// ── message_end: LLM response finished ────────────────────
+} else if (evt.type === 'message_end') {
+finalizeBubble(evt.is_last_message);
+
+// ── token: append to current bubble ───────────────────────
+} else if (evt.type === 'token') {
+if (toolEl) { toolEl.remove(); toolEl = null; }
+if (!currentBubble) startNewBubble(); // fallback
+currentText += evt.content;
+currentBubble.textContent = currentText;
+scrollToBottom();
+
+// ── files_saved: quiet confirmation ───────────────────────
+} else if (evt.type === 'files_saved') {
+if (toolEl) toolEl.remove();
+toolEl = appendToolIndicator(`Arquivos salvos: ${evt.paths.map(p => p.split('\\').pop()).join(', ')}`);
+
+// ── tool_start: show which tool is running ─────────────────
+} else if (evt.type === 'tool_start') {
+if (!toolEl) toolEl = appendToolIndicator(evt.tool);
+else toolEl.querySelector('strong').textContent = evt.tool;
+
+// ── done: SSE stream ended ─────────────────────────────────
+} else if (evt.type === 'done') {
+finalizeBubble(true); // treat stream close as last
+
+// ── error ──────────────────────────────────────────────────
+} else if (evt.type === 'error') {
+const errText = `❌ Erro: ${evt.detail}`;
+if (currentBubble) {
+currentBubble.textContent = errText;
+currentText = errText;
+}
+finalizeBubble(true);
+}
+}
+}
+
+} catch (err) {
+const errText = `❌ Erro ao conectar com a API: ${err.message}`;
+if (currentBubble) {
+currentBubble.textContent = errText;
+currentText = errText;
+} else {
+const b = appendMessage('agent', errText, false);
+allAgentTexts.push(errText);
+}
+finalizeBubble(true);
+}
+}
+
+// ── Feature card suggestion ────────────────────────────────────────
+function useSuggestion(text) {
+msgInput.value = text;
+msgInput.dispatchEvent(new Event('input'));
+sendMessage();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function escHtml(str) {
+return str.replace(/&/g, '&amp;').replace(/</g, '&lt;' ).replace( />/g, '&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+renderHistory();
+</script>
+</body>
+
+</html>

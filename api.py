@@ -27,10 +27,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─── Silence noisy loggers ────────────────────────────────────────────────────
-for _name in ("mlflow", "mlflow.langchain", "opentelemetry", "alembic"):
+for _name in ("opentelemetry", "alembic"):
     _log = logging.getLogger(_name)
     _log.setLevel(logging.CRITICAL)
     _log.propagate = False
+
+# ─── MLFlow Tracing ──────────────────────────────────────────────────────────
+import mlflow
+try:
+    mlflow.langchain.autolog()
+    print("✅ MLflow Tracing habilitado.")
+except Exception as e:
+    print(f"⚠️ Erro ao habilitar MLflow Tracing: {e}")
 
 # ─── FastAPI ──────────────────────────────────────────────────────────────────
 from fastapi import FastAPI, HTTPException
@@ -105,18 +113,84 @@ class SettingsRequest(BaseModel):
     MODEL_BASE_URL:  Optional[str] = None
     WORKSPACE_ROOT:  Optional[str] = None
     UPLOAD_DIR:      Optional[str] = None
+    DB_TYPE:         Optional[str] = None
+    DATABASE_URL:    Optional[str] = None
+    COSMOS_ENDPOINT: Optional[str] = None
+    COSMOS_KEY:      Optional[str] = None
 
 # Keys that are safe to return publicly (no secrets)
-_PUBLIC_KEYS = {"MODEL_PROVIDER", "MODEL_NAME", "MODEL_BASE_URL", "WORKSPACE_ROOT", "UPLOAD_DIR"}
+_PUBLIC_KEYS = {"MODEL_PROVIDER", "MODEL_NAME", "MODEL_BASE_URL", "WORKSPACE_ROOT", "UPLOAD_DIR", "DB_TYPE", "DATABASE_URL", "COSMOS_ENDPOINT"}
 
 # ─── Estado global do agente ─────────────────────────────────────────────────
 # O grafo é carregado uma única vez na inicialização do servidor.
 
 _agent_graph = None
-_checkpointer = MemorySaver()
+_checkpointer = None
+_db_pool = None
+_sqlite_conn = None
+_cosmos_client = None
+
+async def _init_checkpointer():
+    global _checkpointer, _db_pool, _sqlite_conn, _cosmos_client
+    
+    # Close old connections if re-initializing
+    if _db_pool:
+        try: await _db_pool.close()
+        except: pass
+        _db_pool = None
+    if _sqlite_conn:
+        try: await _sqlite_conn.close()
+        except: pass
+        _sqlite_conn = None
+    if _cosmos_client:
+        try: await _cosmos_client.close()
+        except: pass
+        _cosmos_client = None
+        
+    db_type = os.environ.get("DB_TYPE", "sqlite").lower()
+    
+    if db_type == "postgres":
+        # Usando PostgreSQL
+        db_url = os.environ.get("DATABASE_URL")
+        from psycopg_pool import AsyncConnectionPool
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        
+        _db_pool = AsyncConnectionPool(
+            conninfo=db_url,
+            max_size=20,
+            kwargs={"autocommit": True, "prepare_threshold": 0},
+        )
+        await _db_pool.open()
+        _checkpointer = AsyncPostgresSaver(_db_pool)
+        await _checkpointer.setup()
+        
+    elif db_type == "cosmosdb":
+        # Usando Cosmos DB
+        endpoint = os.environ.get("COSMOS_ENDPOINT") or ""
+        key = os.environ.get("COSMOS_KEY") or ""
+        from azure.cosmos.aio import CosmosClient
+        from langgraph.checkpoint.cosmosdb import AsyncCosmosDBSaver
+        
+        _cosmos_client = CosmosClient(url=endpoint, credential=key)
+        _checkpointer = AsyncCosmosDBSaver(client=_cosmos_client)
+        # O CosmosDBSaver pode requerer banco criado em tempo de UI, mas nós assumimos uso do DB e Container defaults se não suportados.
+        await _checkpointer.setup()
+        
+    else:
+        # Usando SQLite localmente no Windows/Dev
+        from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+        import aiosqlite
+        
+        sqlite_path = os.path.join(UPLOAD_DIR, "..", "checkpoints.sqlite")
+        _sqlite_conn = await aiosqlite.connect(os.path.abspath(sqlite_path), check_same_thread=False)
+        _checkpointer = AsyncSqliteSaver(_sqlite_conn)
+        await _checkpointer.setup()
 
 async def _get_graph():
-    global _agent_graph
+    global _agent_graph, _checkpointer
+    if _checkpointer is None:
+        await _init_checkpointer()
+        
     if _agent_graph is None:
         from agents.openagent import get_openagent
         _agent_graph = await get_openagent()
@@ -168,7 +242,7 @@ async def update_settings(req: SettingsRequest):
     Atualiza as variáveis de ambiente em runtime e reseta o agente.
     O próximo request de chat criará um novo graph com o novo modelo.
     """
-    global _agent_graph
+    global _agent_graph, _checkpointer
 
     changed = False
     for field, value in req.model_dump(exclude_none=True).items():
@@ -179,6 +253,8 @@ async def update_settings(req: SettingsRequest):
     if changed:
         # Reinicia o grafo para que use o novo modelo
         _agent_graph = None
+        _checkpointer = None
+        
         # Limpa o cache do modelo
         try:
             from agents.models import clear_model_cache
@@ -287,6 +363,10 @@ async def chat_stream(req: ChatRequest):
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
+        except asyncio.CancelledError:
+            # Usuário fechou o navegador ou recarregou no meio do streaming
+            print("⚠️ Conexão interrompida pelo cliente (Cancelled).")
+            return
         except Exception as e:
             payload = json.dumps({"type": "error", "detail": str(e)})
             yield f"data: {payload}\n\n"

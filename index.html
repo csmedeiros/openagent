@@ -611,6 +611,100 @@
       text-align: center;
     }
 
+    /* ── Custom Alert Modal ───────────────────────────────── */
+    .custom-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(2px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .custom-modal-backdrop.open {
+      display: flex;
+    }
+
+    .custom-modal-panel {
+      background: #18181b;
+      border: 1px solid #c2410c;
+      border-radius: 12px;
+      width: 400px;
+      max-width: 90vw;
+      padding: 24px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      animation: modalFadeIn 0.2s ease;
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .custom-modal-icon {
+      color: #ea580c;
+      margin-bottom: 12px;
+    }
+
+    .custom-modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f4f4f5;
+      margin-bottom: 8px;
+    }
+
+    .custom-modal-desc {
+      font-size: 14px;
+      color: #a1a1aa;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .custom-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .custom-modal-btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transition);
+    }
+
+    .custom-modal-btn-cancel {
+      background: transparent;
+      color: #a1a1aa;
+      border: 1px solid var(--border);
+    }
+
+    .custom-modal-btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #f4f4f5;
+    }
+
+    .custom-modal-btn-confirm {
+      background: #ea580c;
+      color: white;
+    }
+
+    .custom-modal-btn-confirm:hover {
+      background: #dc2626;
+    }
+
     /* ── Settings overlay ─────────────────────────────────── */
     .settings-backdrop {
       display: none;
@@ -909,10 +1003,42 @@
             </div>
 
             <div>
-              <div class="settings-section-label">Workspace</div>
+              <div class="settings-section-label">Sistema & Workspace</div>
               <div class="settings-field">
                 <label for="cfg-workspace">Diretório de trabalho (WORKSPACE_ROOT)</label>
                 <input type="text" id="cfg-workspace" placeholder="C:\Users\...\openagent-tests" />
+              </div>
+              <div class="settings-field" style="margin-top:12px">
+                <label for="cfg-db-type">Método de Armazenamento de Histórico (DB_TYPE)</label>
+                <select id="cfg-db-type">
+                  <option value="sqlite">Local (SQLite)</option>
+                  <option value="postgres">PostgreSQL Remoto</option>
+                  <option value="cosmosdb">Azure Cosmos DB</option>
+                </select>
+              </div>
+
+              <!-- Postgres Options -->
+              <div id="cfg-db-postgres-group"
+                style="display: none; padding-left: 10px; border-left: 2px solid var(--border); margin-top: 12px;">
+                <div class="settings-field">
+                  <label for="cfg-database-url">PostgreSQL Remoto (DATABASE_URL)</label>
+                  <input type="text" id="cfg-database-url" placeholder="postgresql://user:pass@host/db" />
+                </div>
+              </div>
+
+              <!-- Cosmos DB Options -->
+              <div id="cfg-db-cosmos-group"
+                style="display: none; padding-left: 10px; border-left: 2px solid var(--border); margin-top: 12px;">
+                <div class="settings-field">
+                  <label for="cfg-cosmos-endpoint">Cosmos Endpoint (COSMOS_ENDPOINT)</label>
+                  <input type="text" id="cfg-cosmos-endpoint"
+                    placeholder="https://<account>.documents.azure.com:443/" />
+                </div>
+                <div class="settings-field" style="margin-top:12px">
+                  <label for="cfg-cosmos-key">Cosmos Key (COSMOS_KEY)</label>
+                  <input type="password" id="cfg-cosmos-key" placeholder="Sua Chave Primária / Secundária"
+                    autocomplete="off" />
+                </div>
               </div>
             </div>
 
@@ -1009,6 +1135,30 @@
           </button>
         </div>
         <div class="input-footer">OpenAgent pode cometer erros. Verifique informações importantes.</div>
+      </div>
+
+      <!-- Custom Confirm Modal -->
+      <div class="custom-modal-backdrop" id="db-alert-modal">
+        <div class="custom-modal-panel">
+          <div class="custom-modal-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div class="custom-modal-title">Atenção ao Histórico</div>
+          <div class="custom-modal-desc">
+            Você está alterando o método de armazenamento de conversas (PostgreSQL / SQLite). <br><br>
+            O histórico das conversas anteriores gravadas no banco anterior <b>não aparecerão neste</b>, e o chat atual
+            não será migrado automaticamente.<br><br>
+            Tem certeza que deseja aplicar essa mudança agora?
+          </div>
+          <div class="custom-modal-actions">
+            <button class="custom-modal-btn custom-modal-btn-cancel" id="db-alert-cancel">Cancelar</button>
+            <button class="custom-modal-btn custom-modal-btn-confirm" id="db-alert-confirm">Sim, continuar</button>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -1395,6 +1545,10 @@
       'cfg-api-key': 'MODEL_API_KEY',
       'cfg-base-url': 'MODEL_BASE_URL',
       'cfg-workspace': 'WORKSPACE_ROOT',
+      'cfg-db-type': 'DB_TYPE',
+      'cfg-database-url': 'DATABASE_URL',
+      'cfg-cosmos-endpoint': 'COSMOS_ENDPOINT',
+      'cfg-cosmos-key': 'COSMOS_KEY',
     };
 
     function openSettings() {
@@ -1412,6 +1566,16 @@
       if (e.target === settingsBackdrop) closeSettings();
     });
 
+    const dbTypeSelect = document.getElementById('cfg-db-type');
+    const postgresGroup = document.getElementById('cfg-db-postgres-group');
+    const cosmosGroup = document.getElementById('cfg-db-cosmos-group');
+
+    dbTypeSelect?.addEventListener('change', (e) => {
+      const val = e.target.value;
+      postgresGroup.style.display = val === 'postgres' ? 'block' : 'none';
+      cosmosGroup.style.display = val === 'cosmosdb' ? 'block' : 'none';
+    });
+
     // Load from localStorage into the form fields
     function loadSettingsUI() {
       const saved = JSON.parse(localStorage.getItem('openagent-settings') || '{}');
@@ -1420,22 +1584,69 @@
         if (!el) continue;
         if (saved[key] !== undefined) el.value = saved[key];
       }
+
+      // Toggle inputs dynamically after value check
+      if (dbTypeSelect) {
+        if (!saved['DB_TYPE']) dbTypeSelect.value = 'sqlite';
+        dbTypeSelect.dispatchEvent(new Event('change'));
+      }
     }
 
     // Save to localStorage and POST to API
     settingsSave.addEventListener('click', async () => {
-      settingsSave.disabled = true;
 
       const payload = {};
       const local = JSON.parse(localStorage.getItem('openagent-settings') || '{}');
+
+      // Checar se o método de armazenamento (DB_TYPE) está sendo alterado
+      const newDbType = dbTypeSelect?.value || 'sqlite';
+      const oldDbType = local['DB_TYPE'] || 'sqlite';
+
+      if (newDbType !== oldDbType) {
+        // Exibe Modal HTML Customizado ao invés de alert() nativo
+        const proceed = await new Promise((resolve) => {
+          const modal = document.getElementById('db-alert-modal');
+          const btnCancel = document.getElementById('db-alert-cancel');
+          const btnConfirm = document.getElementById('db-alert-confirm');
+
+          modal.classList.add('open');
+
+          const onCancel = () => {
+            modal.classList.remove('open');
+            cleanup();
+            resolve(false);
+          };
+          const onConfirm = () => {
+            modal.classList.remove('open');
+            cleanup();
+            resolve(true);
+          };
+          const cleanup = () => {
+            btnCancel.removeEventListener('click', onCancel);
+            btnConfirm.removeEventListener('click', onConfirm);
+          };
+
+          btnCancel.addEventListener('click', onCancel);
+          btnConfirm.addEventListener('click', onConfirm);
+        });
+
+        if (!proceed) return;
+      }
+
+      settingsSave.disabled = true;
 
       for (const [elId, key] of Object.entries(CFG_FIELDS)) {
         const el = document.getElementById(elId);
         if (!el) continue;
         const val = el.value.trim();
+
         if (val) {
           payload[key] = val;
           local[key] = val;
+        } else if (key === 'DATABASE_URL' || key.startsWith('COSMOS_')) {
+          // Permite que os links vazios virem fallbacks em branco. DB_TYPE nunca é limpo pois tem valor select default.
+          payload[key] = "";
+          delete local[key];
         }
       }
 

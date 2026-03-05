@@ -81,6 +81,7 @@ async def agent(state: OpenAgentState) -> OpenAgentState:
         shell_tool,
         write_todos,
         search_web,
+        provide_download_link,
     ]
     tools.extend(await get_scrapling_tools())
 

@@ -58,15 +58,19 @@ Here are the available tools for your usage.
       - For multi-section edits in the same file, work from **bottom to top** so earlier line numbers stay valid.
 
 - **write_file**:
-   Writes text content to a file. Creates the file if it doesn't exist, or overwrites it. Also supports appending content to the end of an existing file.
+   Writes content to a specific file. The parent directories will be created if they don't exist.
    - Parameters:
-      - `file_path` (required): Path to the file to write.
-      - `content` (required): The text content to write.
-      - `append` (optional, default: `false`): If `true`, appends the content to the end of the file instead of overwriting it.
-   - Notes:
-      - Only writes text-like content, not binary files.
-      - When overwriting, the entire file content is replaced.
-      - When appending, a newline is added before the content.
+      - `file_path` (required): Path to the file where the content will be written.
+      - `text` (required): The content to write to the file.
+      - `append` (optional): If True, appends the text to the end of the file instead of overwriting it (default: False).
+   - Use this when creating new files or when appending to the end of a file. For modifying existing files, prefer `edit_file`.
+
+- **provide_download_link**:
+   Generates a clickable markdown link for a local file so the user can open or download it from their terminal.
+   - Parameters:
+      - `file_path` (required): The absolute or relative path to the file.
+      - `text` (required): The text to be displayed for the clickable link.
+   - Use this whenever you generate or modify a file that the user requested to download or view natively.
 
 - **glob_search**:
    Searches for files matching a glob pattern within the workspace.

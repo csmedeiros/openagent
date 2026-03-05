@@ -36,6 +36,7 @@ RUN mkdir C:\\openagent-workspace && mkdir C:\\openagent-workspace\\uploads
 # ─── Expose ports ─────────────────────────────────────────────────────────────
 EXPOSE 8080
 EXPOSE 3000
+EXPOSE 8000
 
-# ─── Default: start the API (override in docker-compose for the web service) ──
-CMD ["python", "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"]
+# ─── Default: start the Scrapling MCP server, API, and Frontend ──
+CMD ["startup.bat"]

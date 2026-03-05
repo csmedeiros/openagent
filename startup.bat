@@ -1,0 +1,9 @@
+@echo off
+echo Starting Scrapling MCP Server...
+start /b scrapling mcp -http
+
+echo Starting FastAPI Backend...
+start /b python -m uvicorn api:app --host 0.0.0.0 --port 8080
+
+echo Starting Flask Frontend...
+python web.py

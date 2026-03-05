@@ -19,7 +19,7 @@ import os
 
 # Load .env from project root
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.join(_CURRENT_DIR, "../..")
+_PROJECT_ROOT = os.path.join(_CURRENT_DIR, "../../..")
 load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 
 from langchain.chat_models import init_chat_model  # LangChain ≥ 0.3

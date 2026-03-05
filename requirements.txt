@@ -26,6 +26,14 @@ aiofiles==24.1.0
 mlflow
 langfuse>=3.0.0
 
+# Checkpointing (Memory, SQLite para Local, Postgres para Docker, Cosmos DB para Azure)
+langgraph-checkpoint-sqlite
+langgraph-checkpoint-postgres
+psycopg[binary]
+psycopg-pool
+langgraph-checkpoint-cosmosdb
+azure-cosmos
+
 # Build
 setuptools>=65.0.0
 wheel>=0.40.0

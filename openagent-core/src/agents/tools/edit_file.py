@@ -7,7 +7,7 @@ from langchain.messages import ToolMessage
 from typing import Annotated
 
 # Workspace root — override with the WORKSPACE_ROOT environment variable
-WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", r"C:\Users\caiosmedeiros\Documents\openagent-tests")
+WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", os.path.expanduser("~/Documents/openagent-tests"))
 
 
 @tool(parse_docstring=True)

@@ -29,16 +29,6 @@ from langchain.chat_models import init_chat_model  # LangChain ≥ 0.3
 # instances.  Call clear_model_cache() after a settings change.
 _model_cache: dict = {}
 
-
-def _build_kwargs(temperature: float, base_url: str | None, api_key: str | None) -> dict:
-    kwargs: dict = {"temperature": temperature}
-    if api_key:
-        kwargs["api_key"] = api_key
-    if base_url:
-        kwargs["base_url"] = base_url
-    return kwargs
-
-
 def get_model(temperature: float = 0.2):
     """
     Return the configured chat model for the agent.
@@ -46,44 +36,22 @@ def get_model(temperature: float = 0.2):
     Provider / model / credentials are read from environment variables so they
     can be changed at runtime via the Settings UI without restarting the server.
     """
-    provider  = os.environ.get("MODEL_PROVIDER", "anthropic")
-    name      = os.environ.get("MODEL_NAME",     "claude-opus-4-6")
-    api_key   = os.environ.get("MODEL_API_KEY")
-    base_url  = os.environ.get("MODEL_BASE_URL")
 
-    cache_key = (provider, name, base_url, temperature)
-    if cache_key in _model_cache:
-        return _model_cache[cache_key]
-
-    kwargs = _build_kwargs(temperature, base_url, api_key)
-    instance = init_chat_model(model=name, model_provider=provider, **kwargs)
-
-    _model_cache[cache_key] = instance
-    return instance
-
+    llm = init_chat_model(model="claude-sonnet-4-6", model_provider="anthropic", base_url=os.getenv("ANTHROPIC_FOUNDRY_BASE_URL"), api_key=os.getenv("ANTHROPIC_FOUNDRY_API_KEY"), temperature=temperature)
+    return llm
 
 def get_vision_model(temperature: float = 0.2):
     """
     Return a vision-capable model.
-
-    Falls back to MODEL_VISION_NAME / get_model() if no dedicated vision model
-    is configured.
     """
-    provider  = os.environ.get("MODEL_PROVIDER", "anthropic")
-    name      = os.environ.get("MODEL_VISION_NAME",
-                               os.environ.get("MODEL_NAME", "claude-opus-4-6"))
-    api_key   = os.environ.get("MODEL_API_KEY")
-    base_url  = os.environ.get("MODEL_BASE_URL")
-
-    cache_key = (f"vision_{provider}", name, base_url, temperature)
-    if cache_key in _model_cache:
-        return _model_cache[cache_key]
-
-    kwargs = _build_kwargs(temperature, base_url, api_key)
-    instance = init_chat_model(model=name, model_provider=provider, **kwargs)
-
-    _model_cache[cache_key] = instance
-    return instance
+    llm = init_chat_model(
+        model="claude-sonnet-4-6",
+        model_provider="anthropic",
+        base_url=os.getenv("ANTHROPIC_FOUNDRY_BASE_URL"),
+        api_key=os.getenv("ANTHROPIC_FOUNDRY_API_KEY"),
+        temperature=temperature
+    )
+    return llm
 
 
 def clear_model_cache():

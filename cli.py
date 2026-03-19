@@ -67,6 +67,7 @@ _silence_noisy_loggers()
 
 # ─── Rich Imports ────────────────────────────────────────────────────────────
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
 from rich.table import Table
@@ -358,9 +359,9 @@ async def stream_response(graph, user_input: str, config: dict):
                     console.print(Text(f"  {icon} {summary}", style=style))
                     console.print()
 
-        # Após o streaming, se houver texto, renderiza como markdown
+        # Após o streaming, renderiza como Markdown
         if assistant_text:
-            console.print(Panel.fit(Text.from_markup(assistant_text, style=""), title="Resposta", border_style="blue"), markup=True)
+            console.print(Panel(Markdown(assistant_text), title="Resposta", border_style="blue", padding=(1, 2)))
 
     except KeyboardInterrupt:
         console.print("\n[warning]⚠  Interrupted by user[/warning]")

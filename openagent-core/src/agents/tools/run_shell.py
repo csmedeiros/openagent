@@ -5,7 +5,7 @@ from agents.utils.logging import logger
 import os
 
 # Workspace root - consistent with coder.py
-WORKSPACE_ROOT = r"C:\Users\caiosmedeiros\Documents"
+WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", os.path.expanduser("~/Documents/openagent-tests"))
 
 
 def _run_command_sync(command: str, cwd: str, timeout: float = 60.0) -> str:

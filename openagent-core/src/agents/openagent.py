@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append(r"C:\Users\caiosmedeiros\Documents\Projetos Pessoais\openagent\openagent-core\src")
+sys.path.append(r"/Users/claudiomedeiros/Documents/openagent/openagent-core/src")
 
 import mlflow
 mlflow.set_experiment("OpenAgent Testing")
@@ -85,7 +85,7 @@ async def agent(state: OpenAgentState) -> OpenAgentState:
     ]
     tools.extend(await get_scrapling_tools())
 
-    _workdir = os.environ.get("WORKSPACE_ROOT", r"C:\Users\caiosmedeiros\Documents\openagent-tests")
+    _workdir = os.environ.get("WORKSPACE_ROOT", os.path.expanduser("~/Documents/openagent-tests"))
     llm = model.bind_tools(tools=tools)
     response = llm.invoke(
         [SystemMessage(content=sys_prompt.replace("<FILES>", "\n".join(state["files"])).replace("<WORKDIR>", _workdir))] + state["messages"]

@@ -69,7 +69,7 @@ app.add_middleware(
 
 # ─── Upload dir ───────────────────────────────────────────────────────────────
 
-_default_workspace = r"C:\Users\caiosmedeiros\Documents\openagent-tests"
+_default_workspace = os.path.expanduser("~/Documents/openagent-tests")
 UPLOAD_DIR = os.environ.get(
     "UPLOAD_DIR",
     os.path.join(os.environ.get("WORKSPACE_ROOT", _default_workspace), "uploads"),
